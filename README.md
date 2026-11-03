@@ -2,6 +2,8 @@
 
 Company and market intelligence platform for businesses in Puglia.
 
+Documentation: [docs/](docs/README.md)
+
 ## Run locally
 
 ```bash
@@ -30,9 +32,15 @@ Health check: http://localhost:8000/api/health
 ## Tests
 
 ```bash
-cd backend && python manage.py test
+sh scripts/check.sh   # same checks as CI
 ```
 
-## Versioning
+Enable the pre-push hook once per clone, so pushes are blocked when checks fail:
 
-CalVer `vYYYY.MM.PATCH`, tagged automatically by CI on every push to `main`.
+```bash
+git config core.hooksPath .githooks
+```
+
+## CI/CD
+
+Every push and PR runs the tests and a Docker smoke test. On `main`, a passing build is tagged with CalVer (`vYYYY.MM.PATCH`) and deployed when enabled. See [docs/deployment.md](docs/deployment.md).

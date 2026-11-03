@@ -12,6 +12,9 @@ env = environ.Env(
 )
 environ.Env.read_env(BASE_DIR.parent / ".env")
 
+DATA_DIR = Path(env("DATA_DIR", default=str(BASE_DIR.parent / "data")))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
@@ -67,7 +70,7 @@ TEMPLATES = [
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": env("SQLITE_PATH", default=str(BASE_DIR / "db.sqlite3")),
+        "NAME": env("SQLITE_PATH", default=str(DATA_DIR / "db.sqlite3")),
         "OPTIONS": {
             "transaction_mode": "IMMEDIATE",
             "init_command": "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;",

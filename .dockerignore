@@ -8,5 +8,6 @@
 .venv
 venv
 backend/db.sqlite3
+data
 backend/staticfiles
 frontend/node_modules

@@ -1,0 +1,7 @@
+#!/bin/sh
+# Blocks the push if the checks fail. Skip once with: git push --no-verify
+echo "Running checks before push..."
+if ! sh "$(git rev-parse --show-toplevel)/scripts/check.sh"; then
+    echo "Checks failed, push aborted."
+    exit 1
+fi

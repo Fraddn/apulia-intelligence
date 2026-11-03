@@ -14,7 +14,7 @@ COPY backend/requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY backend/ .
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data/raw
 
 RUN SECRET_KEY=build-only python manage.py collectstatic --noinput
 

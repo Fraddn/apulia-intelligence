@@ -1,0 +1,87 @@
+name: Release & Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-deploy
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  release:
+    # CalVer: vYYYY.MM.PATCH
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.calver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Compute CalVer
+        id: calver
+        run: |
+          PREFIX="$(date -u +%Y.%m)"
+          LAST=$(git tag --list "v${PREFIX}.*" | sed "s/^v${PREFIX}\.//" | sort -n | tail -1)
+          PATCH=$(( ${LAST:--1} + 1 ))
+          echo "version=${PREFIX}.${PATCH}" >> "$GITHUB_OUTPUT"
+      - name: Create tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.calver.outputs.version }}" \
+            --target "${{ github.sha }}" \
+            --title "v${{ steps.calver.outputs.version }}" \
+            --generate-notes
+
+  deploy:
+    if: vars.DEPLOY_ENABLED == 'true'
+    needs: release
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.DEPLOY_URL }}
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      APP_VERSION: ${{ needs.release.outputs.version }}
+      TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
+          echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_deploy
+          echo "SSH_OPTS=-i $HOME/.ssh/id_deploy -p ${{ secrets.DEPLOY_PORT || 22 }}" >> "$GITHUB_ENV"
+      - name: Upload code
+        run: |
+          rsync -az --delete -e "ssh $SSH_OPTS" \
+            --exclude='.git/' --exclude='.github/' --exclude='.claude/' \
+            --exclude='data/' --exclude='.env' --exclude='docs/' \
+            ./ "$TARGET:$DEPLOY_PATH/"
+      - name: Run deploy script
+        run: |
+          ssh $SSH_OPTS "$TARGET" \
+            "cd '$DEPLOY_PATH' && APP_VERSION='$APP_VERSION' sh deploy/vps.sh"
+      - name: Verify deployment
+        if: vars.DEPLOY_URL != ''
+        run: |
+          for i in $(seq 1 20); do
+            BODY=$(curl -sf "${{ vars.DEPLOY_URL }}/api/health") && echo "$BODY" | grep -q '"ok"' && { echo "$BODY"; exit 0; }
+            sleep 6
+          done
+          echo "Health check failed"; exit 1
