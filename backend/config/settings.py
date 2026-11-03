@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import dj_database_url
 import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -66,10 +65,14 @@ TEMPLATES = [
 ]
 
 DATABASES = {
-    "default": dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,
-    )
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": env("SQLITE_PATH", default=str(BASE_DIR / "db.sqlite3")),
+        "OPTIONS": {
+            "transaction_mode": "IMMEDIATE",
+            "init_command": "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;",
+        },
+    }
 }
 
 AUTH_PASSWORD_VALIDATORS = [
