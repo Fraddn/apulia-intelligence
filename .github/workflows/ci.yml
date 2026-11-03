@@ -19,8 +19,8 @@ jobs:
       DEBUG: "False"
       SECURE_SSL_REDIRECT: "False"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
           cache: pip
@@ -33,7 +33,7 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker build -t apulia-intelligence:ci .
 
   release:
@@ -46,7 +46,7 @@ jobs:
     outputs:
       version: ${{ steps.calver.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Compute CalVer
