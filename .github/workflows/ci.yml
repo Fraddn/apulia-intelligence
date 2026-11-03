@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      SECRET_KEY: ci-secret-key
+      DEBUG: "False"
+      SECURE_SSL_REDIRECT: "False"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt
+      - run: python manage.py check --deploy --fail-level ERROR
+      - run: python manage.py makemigrations --check --dry-run
+      - run: python manage.py test
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t apulia-intelligence:ci .
+
+  release:
+    # CalVer: YYYY.MM.PATCH — PATCH resets each month, bumps on every push to main
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.calver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compute CalVer
+        id: calver
+        run: |
+          PREFIX="$(date -u +%Y.%m)"
+          LAST=$(git tag --list "v${PREFIX}.*" | sed "s/^v${PREFIX}\.//" | sort -n | tail -1)
+          PATCH=$(( ${LAST:--1} + 1 ))
+          VERSION="${PREFIX}.${PATCH}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Next version: ${VERSION}"
+      - name: Create tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.calver.outputs.version }}" \
+            --target "${{ github.sha }}" \
+            --title "v${{ steps.calver.outputs.version }}" \
+            --generate-notes
