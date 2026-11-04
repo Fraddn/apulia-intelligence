@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import environ
@@ -34,6 +35,7 @@ INSTALLED_APPS = [
     "allauth.headless",
     # local
     "apps.core",
+    "apps.companies",
 ]
 
 MIDDLEWARE = [
@@ -101,6 +103,10 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+
+TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
+if TESTING:
+    STORAGES["staticfiles"] = {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

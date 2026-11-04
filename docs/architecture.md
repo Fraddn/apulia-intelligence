@@ -46,6 +46,22 @@ Coverage happens in two stages:
 1. **Candidates:** about 55k Puglia businesses, with basic identity data.
 2. **Profiles:** 300–500 selected companies, enriched from their websites, Jev classification and other open data.
 
+## Data model (`apps/companies`)
+
+| Model | Purpose |
+|---|---|
+| `Company` | One per VAT number (validated). Identity, ATECO (section + code, version 2007), province (BA, BT, BR, FG, LE, TA), size, status. `profile_level` is `candidate` or `profile`. |
+| `Source` | A data provider (OpenCoesione, RNA, websites, Jev, manual) with licence and attribution. |
+| `SourceSnapshot` | One retrieval from a source: file name or URL, checksum, date of the data, stats. |
+| `FieldProvenance` | For a company field: raw value, snapshot, assurance (`official`, `company`, `inferred`, `derived`, `manual`) and optional confidence 0–1. |
+
+- `Company.record_provenance(field, raw_value, snapshot, assurance, confidence)` adds a row, or skips it if the same value from the same snapshot already exists.
+- `Company.provenance_for(field)` returns the latest row.
+
+Helpers:
+- `vat.py`: checksum validation; `province_from_vat` reads the province from the tax-office code (digits 8–10). Store it as `derived`.
+- `ateco.py`: `normalize_ateco("C-25.62.00")` returns `("C", "25.62.00")`; for plain codes the section is worked out from the division.
+
 ## Configuration
 
 Everything is set through environment variables. See `.env.example`.

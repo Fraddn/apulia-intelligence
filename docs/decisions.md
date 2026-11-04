@@ -11,3 +11,5 @@
 | 2026-11-03 | Raw files kept in `data/raw/`, imported by management commands | Traceability; no repeated downloads |
 | 2026-11-03 | Jev for company classification | Type-safe structured classification |
 | 2026-11-03 | Serverplan VPS with Docker Compose (not shared hosting) | Same setup as local; long imports and background jobs allowed |
+| 2026-11-03 | Per-field provenance table (`FieldProvenance`) instead of columns on `Company` | Every value traceable to a snapshot with an assurance level, as the requirements demand |
+| 2026-11-03 | Store ATECO version (2007 by default) | Sources use ATECO 2007; ATECO 2025 renumbers sections |
