@@ -30,6 +30,7 @@ class CompanyTests(TestCase):
         self.assertEqual(company.profile_level, Company.ProfileLevel.CANDIDATE)
         self.assertEqual(company.status, Company.Status.UNKNOWN)
         self.assertEqual(company.size_class, Company.SizeClass.UNKNOWN)
+        self.assertEqual(company.ateco_version, "")
         self.assertEqual(str(company), "PA.MEC SRL (03132170717)")
 
     def test_vat_number_is_unique(self):

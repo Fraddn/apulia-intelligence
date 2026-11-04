@@ -1,27 +1,37 @@
 from django.test import SimpleTestCase
 
-from apps.companies.ateco import normalize_ateco, section_for_division
+from apps.companies.ateco import Ateco, normalize_ateco, section_for_division
 
 
 class NormalizeAtecoTests(SimpleTestCase):
-    def test_code_with_section_prefix(self):
-        self.assertEqual(normalize_ateco("C-25.62.00"), ("C", "25.62.00"))
+    def test_letter_prefix_defaults_to_2007(self):
+        self.assertEqual(normalize_ateco("C-25.62.00"), Ateco("C", "25.62.00", "2007"))
 
-    def test_plain_code_derives_section(self):
-        self.assertEqual(normalize_ateco("62.01.00"), ("J", "62.01.00"))
-        self.assertEqual(normalize_ateco("47.11.40"), ("G", "47.11.40"))
+    def test_version_suffix(self):
+        self.assertEqual(normalize_ateco("62.01.00_2007"), Ateco("J", "62.01.00", "2007"))
+        self.assertEqual(normalize_ateco("47.11.40_2022"), Ateco("G", "47.11.40", "2022"))
 
-    def test_short_codes(self):
-        self.assertEqual(normalize_ateco("62.01"), ("J", "62.01"))
-        self.assertEqual(normalize_ateco("62"), ("J", "62"))
+    def test_malformed_suffixes(self):
+        self.assertEqual(normalize_ateco("62.01.00_2007_2007"), Ateco("J", "62.01.00", "2007"))
+        self.assertEqual(normalize_ateco("62.01.00_2007_"), Ateco("J", "62.01.00", "2007"))
+
+    def test_plain_code(self):
+        self.assertEqual(normalize_ateco("62.01"), Ateco("J", "62.01", "2007"))
+        self.assertEqual(normalize_ateco("85.6_2007"), Ateco("P", "85.6", "2007"))
+
+    def test_section_only(self):
+        self.assertEqual(normalize_ateco("P_2007"), Ateco("P", "", "2007"))
+
+    def test_2025_codes_are_not_mapped(self):
+        self.assertEqual(normalize_ateco("62.10.00_2025"), Ateco("", "62.10.00", "2025"))
 
     def test_whitespace_and_case(self):
-        self.assertEqual(normalize_ateco("  j-62.01.00 "), ("J", "62.01.00"))
+        self.assertEqual(normalize_ateco("  j-62.01.00 "), Ateco("J", "62.01.00", "2007"))
 
-    def test_empty_or_garbage(self):
-        for value in [None, "", "   ", "xx", "C-", "99999"]:
+    def test_invalid(self):
+        for value in [None, "", "   ", "xx", "C-", "99999", "04.10", "Z-99.00.00", "C-62.01.00", "Z_2007"]:
             with self.subTest(value=value):
-                self.assertEqual(normalize_ateco(value), (None, None))
+                self.assertIsNone(normalize_ateco(value))
 
 
 class SectionForDivisionTests(SimpleTestCase):

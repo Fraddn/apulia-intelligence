@@ -12,4 +12,5 @@
 | 2026-11-03 | Jev for company classification | Type-safe structured classification |
 | 2026-11-03 | Serverplan VPS with Docker Compose (not shared hosting) | Same setup as local; long imports and background jobs allowed |
 | 2026-11-03 | Per-field provenance table (`FieldProvenance`) instead of columns on `Company` | Every value traceable to a snapshot with an assurance level, as the requirements demand |
-| 2026-11-03 | Store ATECO version (2007 by default) | Sources use ATECO 2007; ATECO 2025 renumbers sections |
+| 2026-11-03 | Store ATECO version (empty when unknown) | Sources use 2007/2022 codes; ATECO 2025 renumbers sections |
+| 2026-11-04 | Companies only: legal forms 1.2, 1.3, 1.4, 1.5, 1.9 | Sole traders' names are personal data (GDPR); associations, foundations and anonymous records are not companies |

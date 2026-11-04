@@ -76,7 +76,7 @@ class Company(models.Model):
     ateco_section = models.CharField(max_length=1, blank=True, db_index=True)
     ateco_code = models.CharField(max_length=10, blank=True, db_index=True)
     ateco_description = models.CharField(max_length=255, blank=True)
-    ateco_version = models.CharField(max_length=4, default="2007")
+    ateco_version = models.CharField(max_length=4, blank=True)
 
     province = models.CharField(max_length=2, choices=Province, blank=True, db_index=True)
     municipality_code = models.CharField(max_length=6, blank=True)
