@@ -95,6 +95,13 @@ class CompanyAidOut(Schema):
     items: list[StateAidOut]
 
 
+class WebsiteCheckOut(Schema):
+    url: str
+    status: str
+    pages: int
+    checked_at: datetime
+
+
 class CompanyDetailOut(CompanyListOut):
     tax_code: str
     legal_form_code: str
@@ -105,6 +112,11 @@ class CompanyDetailOut(CompanyListOut):
     address: str
     postcode: str
     website: str
+    phone: str
+    email: str
+    pec: str
+    latitude: float | None
+    longitude: float | None
     status: str
     employees_band: str
     founded_on: date | None
@@ -114,6 +126,7 @@ class CompanyDetailOut(CompanyListOut):
     projects: list[ProjectOut]
     projects_total: int
     aid: CompanyAidOut
+    website_check: WebsiteCheckOut | None
 
 
 class CompanyFilters(FilterSchema):
@@ -222,7 +235,10 @@ def list_companies(request, filters: Query[CompanyFilters], sort: SortOption = "
 
 @router.get("/companies/{vat_number}", response=CompanyDetailOut)
 def get_company(request, vat_number: str):
-    company = get_object_or_404(Company, vat_number=vat_number)
+    return _company_detail(get_object_or_404(Company, vat_number=vat_number))
+
+
+def _company_detail(company):
     latest = {}
     for provenance in FieldProvenance.objects.filter(company=company).select_related("snapshot__source"):
         latest.setdefault(provenance.field, provenance)
@@ -252,6 +268,7 @@ def get_company(request, vat_number: str):
         "projects": [_project_out(r) for r in projects[:PROJECTS_LIMIT]],
         "projects_total": roles.count(),
         "aid": _company_aid(company),
+        "website_check": getattr(company, "website_check", None),
     }
 
 

@@ -115,6 +115,9 @@ export default {
       address: 'Address',
       postcode: 'Postcode',
       website: 'Website',
+      phone: 'Phone',
+      email: 'Email',
+      pec: 'PEC (certified email)',
       size_class: 'Company size',
       employees_band: 'Employees',
     },
@@ -171,6 +174,13 @@ export default {
     none: 'No state aid found in the national register.',
     showing: 'Showing {shown} of {total} grants',
     details: 'Official notice',
+  },
+  website: {
+    verified: 'Contacts read from the company website on {date}, VAT number verified.',
+    vatNotFound: 'The website does not show this company’s VAT number, so it was not used.',
+    unreachable: 'The website could not be reached.',
+    blocked: 'The website does not allow automated reading (robots.txt).',
+    open: 'Open website',
   },
   assurance: {
     official: 'Official',

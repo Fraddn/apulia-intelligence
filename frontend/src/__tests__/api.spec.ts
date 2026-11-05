@@ -26,4 +26,5 @@ describe('api', () => {
     await expect(api.company('00000000000')).rejects.toMatchObject({ status: 404 })
     await expect(api.company('00000000000')).rejects.toBeInstanceOf(ApiError)
   })
+
 })

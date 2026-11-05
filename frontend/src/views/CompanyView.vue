@@ -23,11 +23,12 @@
         <div class="company__groups">
           <article v-for="group in groups" :key="group.title" class="card">
             <h2 class="company__group-title">{{ group.title }}</h2>
+            <WebsiteStatus v-if="group.key === 'location'" :check="company.website_check" />
             <dl class="company__fields">
               <div v-for="row in group.rows" :key="row.field" class="company__row">
                 <dt class="company__term">{{ t(`company.fields.${row.field}`) }}</dt>
                 <dd class="company__value">
-                  <a v-if="row.href && row.value" :href="row.href" target="_blank" rel="noopener">{{ row.value }}</a>
+                  <a v-if="row.href && row.value" :href="row.href" :target="row.href.startsWith('http') ? '_blank' : undefined" rel="noopener">{{ row.value }}</a>
                   <span v-else-if="row.value">{{ row.value }}</span>
                   <span v-else class="muted">{{ t('common.notAvailable') }}</span>
                   <span v-if="row.provenance" class="company__source">
@@ -115,6 +116,7 @@ import AssuranceBadge from '../components/AssuranceBadge.vue'
 import LoadState from '../components/LoadState.vue'
 import ProjectList from '../components/ProjectList.vue'
 import StatTile from '../components/StatTile.vue'
+import WebsiteStatus from '../components/WebsiteStatus.vue'
 import { formatCurrency, formatDate, formatNumber } from '../format'
 
 interface Row {
@@ -183,6 +185,7 @@ const groups = computed(() => {
       ],
     },
     {
+      key: 'location',
       title: t('company.location'),
       rows: [
         makeRow('province', c.province ? t(`provinces.${c.province}`) : '', {
@@ -192,6 +195,9 @@ const groups = computed(() => {
         makeRow('address', c.address),
         makeRow('postcode', c.postcode),
         makeRow('website', c.website, { href: c.website }),
+        makeRow('phone', c.phone, { href: c.phone ? `tel:${c.phone.replace(/\s+/g, '')}` : undefined }),
+        makeRow('email', c.email, { href: c.email ? `mailto:${c.email}` : undefined }),
+        makeRow('pec', c.pec, { href: c.pec ? `mailto:${c.pec}` : undefined }),
       ],
     },
     {

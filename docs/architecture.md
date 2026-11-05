@@ -56,6 +56,8 @@ Coverage happens in two stages:
 | `Project` | A funded project from OpenCoesione: title, description, theme, status, public/EU funding, payments, dates, number of beneficiaries, link |
 | `StateAid` | One grant from the national state-aid register (RNA): measure, granting body, project, date, procedures, objectives, instruments, aid amount (summed across components), size stated, transparency link |
 | `ProjectRole` | Company ↔ project with role: beneficiary, implementer, contractor, programmer |
+| `WebsiteCheck` | Latest reading of a company's website: URL, status (verified / VAT not found / unreachable / blocked / no website), pages, time |
+| `WebsitePage` | Text of each page read from the company's website (for classification) |
 | `FieldProvenance` | For a company field: raw value, snapshot, assurance (`official`, `company`, `inferred`, `derived`, `manual`) and optional confidence 0–1. |
 
 - `Company.record_provenance(field, raw_value, snapshot, assurance, confidence)` adds a row, or skips it if the same value from the same snapshot already exists.

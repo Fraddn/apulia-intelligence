@@ -85,6 +85,11 @@ class Company(models.Model):
     address = models.CharField(max_length=255, blank=True)
     postcode = models.CharField(max_length=5, blank=True)
     website = models.URLField(blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    email = models.EmailField(blank=True)
+    pec = models.EmailField(blank=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
 
     status = models.CharField(max_length=10, choices=Status, default=Status.UNKNOWN)
     size_class = models.CharField(max_length=10, choices=SizeClass, default=SizeClass.UNKNOWN)
@@ -230,3 +235,42 @@ class StateAid(models.Model):
 
     def __str__(self):
         return f"{self.cor}: {self.company.vat_number} {self.aid_amount}"
+
+
+
+class WebsiteCheck(models.Model):
+    """Outcome of the latest attempt to read a company's own website."""
+
+    class Status(models.TextChoices):
+        VERIFIED = "verified", "VAT number found"
+        VAT_NOT_FOUND = "vat_not_found", "VAT number not found"
+        UNREACHABLE = "unreachable", "Unreachable"
+        BLOCKED = "blocked", "Blocked by robots.txt"
+        NO_WEBSITE = "no_website", "No website"
+
+    company = models.OneToOneField(Company, on_delete=models.CASCADE, related_name="website_check")
+    url = models.CharField(max_length=500, blank=True)
+    status = models.CharField(max_length=15, choices=Status)
+    pages = models.PositiveSmallIntegerField(default=0)
+    error = models.CharField(max_length=255, blank=True)
+    checked_at = models.DateTimeField()
+
+    def __str__(self):
+        return f"{self.company.vat_number}: {self.status}"
+
+
+class WebsitePage(models.Model):
+    """Text of a page read from a company's website, kept for classification."""
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="website_pages")
+    url = models.CharField(max_length=500)
+    status_code = models.PositiveSmallIntegerField()
+    text = models.TextField(blank=True)
+    vat_found = models.BooleanField(default=False)
+    fetched_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["company", "url"], name="unique_website_page")]
+
+    def __str__(self):
+        return self.url

@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.test import TestCase
 
-from apps.companies.models import Assurance, Company, Project, ProjectRole, Source, SourceSnapshot, StateAid
+from apps.companies.models import Assurance, Company, Project, ProjectRole, Source, SourceSnapshot, StateAid, WebsiteCheck
 
 
 class ApiTestCase(TestCase):
@@ -277,3 +277,26 @@ class StateAidApiTests(ApiTestCase):
         self.assertEqual(data["companies"], 2)
         self.assertEqual(data["grants"], 4)
         self.assertEqual(data["total_amount"], 4000.5)
+
+
+class WebsiteCheckApiTests(ApiTestCase):
+    def test_detail_without_check(self):
+        data = self.client.get("/api/companies/03132170717").json()
+        self.assertIsNone(data["website_check"])
+        self.assertEqual(data["pec"], "")
+
+    def test_detail_with_check(self):
+        from django.utils import timezone
+
+        company = Company.objects.get(vat_number="03132170717")
+        company.pec = "alfa@pec.it"
+        company.save()
+        WebsiteCheck.objects.create(
+            company=company, url="https://alfa.it/", status=WebsiteCheck.Status.VERIFIED, pages=3, checked_at=timezone.now()
+        )
+        data = self.client.get("/api/companies/03132170717").json()
+        self.assertEqual(data["pec"], "alfa@pec.it")
+        self.assertEqual(data["website_check"]["status"], "verified")
+        self.assertEqual(data["website_check"]["url"], "https://alfa.it/")
+        self.assertEqual(data["website_check"]["pages"], 3)
+        self.assertIn("checked_at", data["website_check"])

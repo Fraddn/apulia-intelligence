@@ -118,6 +118,9 @@ const it: typeof en = {
       address: 'Indirizzo',
       postcode: 'CAP',
       website: 'Sito web',
+      phone: 'Telefono',
+      email: 'Email',
+      pec: 'PEC',
       size_class: 'Dimensione aziendale',
       employees_band: 'Addetti',
     },
@@ -174,6 +177,13 @@ const it: typeof en = {
     none: 'Nessun aiuto di Stato trovato nel registro nazionale.',
     showing: 'Mostrate {shown} di {total} concessioni',
     details: 'Atto ufficiale',
+  },
+  website: {
+    verified: 'Contatti letti dal sito aziendale il {date}, partita IVA verificata.',
+    vatNotFound: 'Il sito non riporta la partita IVA di questa azienda, quindi non è stato usato.',
+    unreachable: 'Il sito non è raggiungibile.',
+    blocked: 'Il sito non consente la lettura automatica (robots.txt).',
+    open: 'Apri il sito',
   },
   assurance: {
     official: 'Ufficiale',

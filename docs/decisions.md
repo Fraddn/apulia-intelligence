@@ -19,5 +19,8 @@
 | 2026-11-04 | Exclude tax codes starting 8/9 and out-of-region VATs with any non-Puglia municipality | Removed public bodies (CNR, universities) and national companies (RFI, Telecom) from the Puglia list |
 | 2026-11-05 | RNA state aid imported for our companies; keep all raw monthly files (~3–4 GB) | Real aid amounts per company and SME/large size; keeping raw files follows the traceability rule |
 | 2026-11-05 | New size value "SME" (from RNA), only filled when size is unknown | RNA only distinguishes SME vs large |
+| 2026-11-05 | OpenStreetMap lookup on demand when a company page opens, via Nominatim, cached, new assurance `community` | User's choice; Overpass public server unreliable; respects fair use |
+| 2026-11-05 | **Removed** the OpenStreetMap lookup; focus on company websites for address and contacts | Only ~7% matches even in the best sectors, wrong matches when loosened, unreliable service |
+| 2026-11-05 | Websites entered manually (admin or CSV), then read and verified by VAT number | No usable free search API (Google closed, Bing retired, Brave needs a card and forbids storing results) |
 | 2026-11-04 | All CSS in one global `<style>` in App.vue, enforced by ESLint | User's choice: no scoped styles, no CSS files |
 | 2026-11-04 | Companies only: legal forms 1.2, 1.3, 1.4, 1.5, 1.9 | Sole traders' names are personal data (GDPR); associations, foundations and anonymous records are not companies |

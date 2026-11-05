@@ -1,6 +1,10 @@
-from django.contrib import admin
+from collections import Counter
 
-from .models import Company, FieldProvenance, Source, SourceSnapshot
+from django.contrib import admin, messages
+
+from .enrichment import websites
+from .management.commands.import_websites import manual_snapshot
+from .models import Assurance, Company, FieldProvenance, Source, SourceSnapshot
 
 
 class FieldProvenanceInline(admin.TabularInline):
@@ -21,6 +25,20 @@ class CompanyAdmin(admin.ModelAdmin):
     search_fields = ["name", "vat_number", "ateco_code", "city"]
     readonly_fields = ["created_at", "updated_at"]
     inlines = [FieldProvenanceInline]
+    actions = ["fetch_website_contacts"]
+
+    def save_model(self, request, obj, form, change):
+        if "website" in form.changed_data:
+            obj.website = websites.normalize_url(obj.website)
+        super().save_model(request, obj, form, change)
+        if "website" in form.changed_data and obj.website:
+            obj.record_provenance("website", obj.website, manual_snapshot(f"admin: {request.user}"), Assurance.MANUAL)
+
+    @admin.action(description="Fetch website contacts")
+    def fetch_website_contacts(self, request, queryset):
+        outcome = Counter(websites.fetch(company, force=True).status for company in queryset)
+        summary = ", ".join(f"{status}: {count}" for status, count in sorted(outcome.items()))
+        self.message_user(request, f"Website check finished. {summary}", messages.SUCCESS)
 
 
 @admin.register(Source)

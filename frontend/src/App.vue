@@ -700,6 +700,14 @@ a.project-list__title:hover {
   font-size: 14px;
 }
 
+.website-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
 .load-state {
   display: flex;
   align-items: center;

@@ -82,6 +82,13 @@ export interface CompanyAid {
   items: StateAidItem[]
 }
 
+export interface WebsiteCheck {
+  url: string
+  status: 'verified' | 'vat_not_found' | 'unreachable' | 'blocked' | 'no_website'
+  pages: number
+  checked_at: string
+}
+
 export interface CompanyDetail extends CompanySummary {
   tax_code: string
   legal_form_code: string
@@ -92,6 +99,11 @@ export interface CompanyDetail extends CompanySummary {
   address: string
   postcode: string
   website: string
+  phone: string
+  email: string
+  pec: string
+  latitude: number | null
+  longitude: number | null
   status: string
   employees_band: string
   founded_on: string | null
@@ -101,6 +113,7 @@ export interface CompanyDetail extends CompanySummary {
   projects: FundedProject[]
   projects_total: number
   aid: CompanyAid
+  website_check: WebsiteCheck | null
 }
 
 export interface Page<T> {
@@ -148,11 +161,13 @@ export class ApiError extends Error {
   }
 }
 
-async function get<T>(path: string): Promise<T> {
-  const response = await fetch(`/api${path}`, { headers: { Accept: 'application/json' } })
+async function request<T>(path: string, method = 'GET'): Promise<T> {
+  const response = await fetch(`/api${path}`, { method, headers: { Accept: 'application/json' } })
   if (!response.ok) throw new ApiError(response.status)
   return response.json() as Promise<T>
 }
+
+const get = <T>(path: string) => request<T>(path)
 
 export function buildQuery(params: CompanyQuery): string {
   const query = new URLSearchParams()

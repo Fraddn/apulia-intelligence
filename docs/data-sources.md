@@ -89,9 +89,20 @@ First import (2026-11-04, progetti 2026-08-31 + soggetti 2026-06-30): 37,936 pro
 - **Size:** `DES_TIPO_BENEFICIARIO` is only "PMI" (→ `sme`) or "Grande impresa" (→ `large`), sometimes "Non classificata" (ignored). It is set from the most recent grant, and only when the company's size is unknown or was previously set by RNA, so more detailed sizes from other sources are never overwritten.
 - About 16,000 Puglia beneficiaries per month are not in our list, but RNA has no legal form (companies can't be told apart from sole traders), so they are not added.
 
-## Company websites (enrichment)
+## OpenStreetMap (tried and removed, 2026-11-05)
 
-Fetch the homepage and the about and services pages, respecting `robots.txt`. Extract the text and classify it with Jev. Store website-derived facts as company-supplied, and Jev output as AI-inferred.
+An on-demand lookup when a company page opened (Nominatim; Overpass was overloaded) was built and then **removed**. In the sectors most likely to be mapped (hotels, restaurants, shops) it matched only **4 of 60** companies (7%), because the map lists shop signs rather than legal names and most companies aren't mapped. Looser matching produced mostly wrong matches (e.g. a bar matched to a nursery school), and the service was often slow or returned 503 errors. Migration `0006_remove_osm` deletes its data. Don't retry without a new idea for matching.
+
+## Company websites (address and contacts)
+
+- **Finding websites:** manual entry (decision 2026-11-05; search APIs were rejected: Google Custom Search is closed to new customers, Bing is retired, and Brave requires a card and forbids storing results). Enter one in the Django admin (recorded as `manual`) or in bulk: `python manage.py import_websites sites.csv` with columns `vat_number,website`.
+- **Reading:** `python manage.py fetch_websites [--force] [--limit N]`, or the admin action "Fetch website contacts". Code in `apps/companies/enrichment/websites.py`.
+  - Respects `robots.txt` and identifies itself; reads the homepage plus up to 4 pages whose link is a whole-word match for contact/about/legal/privacy (e.g. `contatti`, `chi-siamo`, `azienda`, `note-legali`, `privacy`). At most 2 MB per page.
+  - **Verification:** the site is used only if a page shows the company's VAT number (`P.IVA 01775410747`, `IT01775410747`, `017 754 107 47`…). Otherwise the status is `vat_not_found` and nothing is extracted.
+  - **Extracted** (assurance `company`, source "Company website", page URL as reference): address + postcode + city only with a Puglia postcode (70xxx–74xxx, 76xxx); the city is cut at words like C.F., Cap. Soc., Tel., P.IVA. Phone from `tel:` links or labelled numbers. **Generic** email only (info@, amministrazione@, commerciale@…; never named people). PEC (pec./legalmail/arubapec… domains).
+  - Never overwrites values whose latest source is another one (official, manual…).
+  - Page text is kept in `WebsitePage` (replaced on each check) for classification. Outcome in `WebsiteCheck` (`verified`, `vat_not_found`, `unreachable`, `blocked`, `no_website`); re-checked after 90 days unless `--force`.
+- First real test (aqp.it, pugliasviluppo.eu): both verified; address found for AQP, email and PEC for Puglia Sviluppo.
 
 ## Other free sources (to evaluate)
 
