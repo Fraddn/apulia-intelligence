@@ -12,6 +12,7 @@ class Command(BaseCommand):
         parser.add_argument("--file", help="Path to a soggetti zip file (default: newest in data/raw/)")
         parser.add_argument("--download", action="store_true", help="Download the latest file first")
         parser.add_argument("--force", action="store_true", help="Re-import even if this file was already imported")
+        parser.add_argument("--prune", action="store_true", help="Delete companies no longer in the file (only if they have no other sources)")
         parser.add_argument("--batch-size", type=int, default=1000)
 
     def handle(self, *args, **options):
@@ -32,6 +33,7 @@ class Command(BaseCommand):
         stats = opencoesione.run_import(
             path,
             force=options["force"],
+            prune=options["prune"],
             batch_size=options["batch_size"],
             progress=lambda s: self.stdout.write(f"  {s['created'] + s['updated'] + s['unchanged']:,} companies saved"),
         )
@@ -41,7 +43,7 @@ class Command(BaseCommand):
             return
 
         self.stdout.write(self.style.SUCCESS(f"Done: {path.name}"))
-        for key in ("rows_read", "rows_matched", "companies_found", "created", "updated", "unchanged"):
+        for key in ("rows_read", "rows_matched", "companies_found", "created", "updated", "unchanged", "stale", "pruned"):
             self.stdout.write(f"  {key.replace('_', ' ')}: {stats[key]:,}")
         for group in ("skipped_rows", "excluded_companies", "ateco"):
             if stats[group]:

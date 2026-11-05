@@ -43,9 +43,12 @@ Import rules:
 - **Legal forms kept:** partnerships (1.2), limited companies (1.3), cooperatives (1.4), consortia (1.5), foreign companies (1.9). **Excluded:** sole traders and freelancers (1.1, personal names under GDPR), public economic bodies (1.6), associations, foundations and other non-profits (1.7, 1.8), and non-1.x public bodies.
 - **Location:** a company is kept if its registered municipality is in Puglia (province marked `official`), or if the municipality is missing and the VAT office is in Puglia (province marked `derived`, confidence 0.7). If the most frequent municipality is outside Puglia, the company is excluded.
 - **Rows merged per VAT number:** the first non-empty value of each column wins.
-- **Excluded:** records without a real name (name is the VAT number), and invalid VAT checksums.
+- **Excluded:** records without a real name (name is the VAT number), invalid VAT checksums, and tax codes starting with 8 or 9 (non-commercial bodies such as CNR, universities and associations, even when labelled as companies).
+- **Out-of-region VAT numbers:** a company whose VAT number was issued outside Puglia is kept only if every municipality recorded for it, anywhere in Italy, is in Puglia. This removed national companies such as RFI and Telecom Italia.
+- **Legal form:** the most frequent value across the company's rows.
+- **Prune:** `--prune` deletes companies no longer in the file, unless they have provenance from another source (e.g. manual edits). After the stricter rules: **41,988 companies**.
 - **ATECO formats:** `C-25.62.00` (2007), `25.62.00_2007`, `47.11.40_2022` (2022 update, same sections), `P_2007` (section only). Codes marked `_2025` are kept without a section and counted.
-- **Text:** double- and triple-encoded UTF-8 and cp1252 mojibake are fixed; `§;` is an escaped `;`. The clean value goes in `Company`, the raw value in `FieldProvenance`.
+- **Text:** double- and triple-encoded UTF-8 and cp1252 mojibake are fixed; `§;` is an escaped `;`. **Names:** CSV-escaped quotes (`"""NAME`), wrapping quotes and unbalanced quotes are removed; balanced inner quotes (`ASILO "LE COCCOLE" SRL`) and accent apostrophes (`SOCIETA'`) are kept (157 names affected). The clean value goes in `Company`, the raw value in `FieldProvenance`.
 - **Re-runs:** a file already imported (same checksum) is skipped unless `--force`. Values whose latest provenance comes from another source (e.g. manual edits) are never overwritten.
 
 First import (snapshot 2026-06-30, 2026-11-04): 7.4M rows read in about 1.5 minutes; **42,485 companies** (BA 18,794, LE 9,032, FG 6,181, TA 5,065, BR 3,407, BT 6); 98.7% have ATECO; sections J+M 4,012, software (62.x) 630; database about 90 MB.
@@ -57,6 +60,22 @@ Findings from exploring the data:
 - BAT companies mostly have Bari-issued VAT numbers.
 - Company size is almost never filled. ATECO comes in mixed formats (`C-25.62.00` and plain digits).
 - Coverage is limited to companies involved in funded projects, which is not the whole economy.
+
+## OpenCoesione: Progetti (funded projects)
+
+- File: `progetti.zip` (about 190 MB zipped, 2.6 GB CSV), stored as `data/raw/opencoesione_progetti_YYYYMMDD.zip`. Same source and licence as Soggetti.
+- Import: `python manage.py import_opencoesione_projects [--projects-file] [--soggetti-file] [--download] [--force]` (code in `apps/companies/importers/opencoesione_projects.py`). It uses the newest progetti and soggetti files in `data/raw/`.
+- Links: the Soggetti file connects company ↔ project (`COD_LOCALE_PROGETTO`) with a role (`SOGG_COD_RUOLO`): 1 programmatore → `programmer`, 2 attuatore → `implementer`, 3 beneficiario → `beneficiary`, 4 realizzatore → `contractor`.
+- Stored per project (`Project`): code, CUP, title, description (`OC_SINTESI_PROGETTO`, 77% filled), synthetic theme (code + label), cycle, status (not started/ongoing/completed/settled), net public funding (`OC_FINANZ_TOT_PUB_NETTO`), EU funding, payments, start and end dates, **number of beneficiaries**, and the OpenCoesione link. Roles go in `ProjectRole`.
+- Only projects linked to our companies are imported. Projects left without any company are deleted.
+- Formats: amounts use a decimal comma (`526265,43`); dates are `YYYYMMDD` (sometimes empty).
+
+**How funding is counted:** a project's amount is the whole project's public funding, not money paid to one company. Only the *beneficiary* role means the company received funding. Projects can be shared by many beneficiaries (one giant shared project made two small SRLs look like €1.38bn each). So:
+- **Company funding = sum of public funding of projects where it is the sole beneficiary** (`beneficiaries_count = 1`).
+- Shared projects are counted and listed, never added to the company's total.
+- Other roles (implementer, contractor) are shown as context, never as funding received.
+
+First import (2026-11-04, progetti 2026-08-31 + soggetti 2026-06-30): 37,936 projects, 117,442 company–project links, 99.8% of linked projects found.
 
 ## RNA: Registro Nazionale Aiuti (enrichment)
 

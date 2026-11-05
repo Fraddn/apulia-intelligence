@@ -116,7 +116,8 @@ class IncludeExcludeTests(ImportTestCase):
             row(make_vat(11, "072"), form=("1.6.10", "Ente pubblico economico")),
         ])
         self.assertEqual(Company.objects.count(), 0)
-        self.assertEqual(stats["skipped_rows"]["not_business"], 6)
+        self.assertEqual(stats["skipped_rows"]["not_business"], 5)
+        self.assertEqual(stats["skipped_rows"]["non_commercial_entity"], 1)
         self.assertEqual(stats["skipped_rows"]["not_company_code"], 1)
         self.assertEqual(stats["skipped_rows"]["outside_puglia"], 1)
         self.assertEqual(stats["skipped_rows"]["invalid_vat"], 1)
@@ -131,6 +132,31 @@ class IncludeExcludeTests(ImportTestCase):
         stats = self.run_import([row(BA, name=BA), row(FG, name="")])
         self.assertEqual(Company.objects.count(), 0)
         self.assertEqual(stats["excluded_companies"]["no_name"], 2)
+
+    def test_non_commercial_tax_codes_are_skipped(self):
+        stats = self.run_import([row("80054330586", name="CNR"), row("93012345678", name="ASSOCIAZIONE SRL")])
+        self.assertEqual(Company.objects.count(), 0)
+        self.assertEqual(stats["skipped_rows"]["non_commercial_entity"], 2)
+
+    def test_out_of_region_vat_needs_only_puglia_municipalities(self):
+        rome = make_vat(300, "058")
+        moved = make_vat(301, "058")
+        stats = self.run_import([
+            row(rome, name="RETE NAZIONALE SPA", comune="016072006", project="P1"),
+            row(rome, name="RETE NAZIONALE SPA", comune="012058091", project="P2"),
+            row(moved, name="TRASFERITA SRL", comune="016075035", project="P3"),
+        ])
+        self.assertFalse(Company.objects.filter(vat_number=rome).exists())
+        self.assertTrue(Company.objects.filter(vat_number=moved).exists())
+        self.assertEqual(stats["excluded_companies"]["registered_outside_puglia"], 1)
+
+    def test_most_frequent_legal_form_wins(self):
+        self.run_import([
+            row(BA, form=("1.2.30", "Società in accomandita semplice"), project="P1"),
+            row(BA, form=SRL, project="P2"),
+            row(BA, form=SRL, project="P3"),
+        ])
+        self.assertEqual(Company.objects.get(vat_number=BA).legal_form_code, "1.3.2")
 
     def test_comune_outside_puglia_in_any_row_excludes_company(self):
         self.run_import([row(LE, project="P1"), row(LE, project="P2", comune="015146049")])
@@ -179,6 +205,12 @@ class CleaningTests(ImportTestCase):
         self.assertEqual(stats["ateco"]["version_2025"], 1)
         self.assertEqual(stats["ateco"]["unparsed"], 1)
 
+    def test_quotes_removed_from_names(self):
+        self.run_import([row(BA, name='"""PHARMAEFFE S.A.S. DI FOGLIA & C')])
+        company = Company.objects.get(vat_number=BA)
+        self.assertEqual(company.name, "PHARMAEFFE S.A.S. DI FOGLIA & C")
+        self.assertEqual(company.provenance_for("name").raw_value, '"""PHARMAEFFE S.A.S. DI FOGLIA & C')
+
     def test_text_cleaned_but_raw_kept(self):
         raw_name = "CAFFÃ\xa0  ROMA  SRL"
         self.run_import([row(BA, name=raw_name, DESCRIZIONE_ATECO_SOGG="biscotti§; dolci")])
@@ -216,6 +248,33 @@ class SnapshotTests(ImportTestCase):
         stats = opencoesione.run_import(path, force=True)
         self.assertEqual(Company.objects.count(), 1)
         self.assertEqual(stats["unchanged"], 1)
+
+
+class PruneTests(ImportTestCase):
+    def test_companies_missing_from_new_file_are_reported_and_pruned(self):
+        self.run_import([row(BA), row(FG)])
+        stats = self.run_import(
+            [row(BA)], filename="opencoesione_soggetti_20260831.zip", inner="soggetti_20260831.csv",
+        )
+        self.assertEqual(stats["stale"], 1)
+        self.assertTrue(Company.objects.filter(vat_number=FG).exists())
+
+        path = write_zip(self.tmp, [row(BA)], filename="opencoesione_soggetti_20261031.zip", inner="soggetti_20261031.csv")
+        stats = opencoesione.run_import(path, prune=True)
+        self.assertEqual(stats["pruned"], 1)
+        self.assertFalse(Company.objects.filter(vat_number=FG).exists())
+
+    def test_companies_with_other_sources_are_never_pruned(self):
+        self.run_import([row(BA), row(FG)])
+        fg = Company.objects.get(vat_number=FG)
+        manual = SourceSnapshot.objects.create(
+            source=Source.objects.create(code="manual", name="Manual", kind=Source.Kind.MANUAL), reference="admin edit",
+        )
+        fg.record_provenance("website", "https://beta.example", manual, Assurance.MANUAL)
+        path = write_zip(self.tmp, [row(BA)], filename="opencoesione_soggetti_20260831.zip", inner="soggetti_20260831.csv")
+        stats = opencoesione.run_import(path, prune=True)
+        self.assertEqual(stats["pruned"], 0)
+        self.assertTrue(Company.objects.filter(vat_number=FG).exists())
 
 
 class UpdateTests(ImportTestCase):

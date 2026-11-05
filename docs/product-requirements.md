@@ -1,10 +1,10 @@
-# Apilia — Product Requirements
+# Puglia Imprese — Product Requirements
 
 Company and market intelligence platform.
 
 ## 1. Product overview
 
-Apilia is a business intelligence platform focused initially on companies operating in Puglia, Italy. It collects, organises, analyses and presents information about businesses. Users can understand the regional business ecosystem and explore individual companies and entire markets.
+Puglia Imprese is a business intelligence platform focused initially on companies operating in Puglia, Italy. It collects, organises, analyses and presents information about businesses. Users can understand the regional business ecosystem and explore individual companies and entire markets.
 
 It is not a simple company directory. Its value is turning fragmented company information into structured, comparable business intelligence. The model is platforms like Beauhurst, adapted to the Italian and regional business environment.
 
@@ -58,7 +58,7 @@ Requirements:
 
 ## 6. AI-powered intelligence
 
-Apilia uses **Jev**, a type-safe AI classification model, to turn unstructured information into structured intelligence. For each company it determines:
+Puglia Imprese uses **Jev**, a type-safe AI classification model, to turn unstructured information into structured intelligence. For each company it determines:
 - industry classification
 - specialisations
 - technologies, with a 0–100 score each

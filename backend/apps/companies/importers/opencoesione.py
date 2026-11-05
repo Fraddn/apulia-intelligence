@@ -15,7 +15,7 @@ from django.db import transaction
 from ..ateco import normalize_ateco
 from ..models import Assurance, Company, FieldProvenance, Source, SourceSnapshot
 from ..provinces import ISTAT_PROVINCE_CODES, PUGLIA_REGION_CODE
-from ..text import clean_text
+from ..text import clean_name, clean_text
 from ..vat import is_valid_vat, province_from_vat
 
 DOWNLOAD_URL = "https://opencoesione.gov.it/it/opendata/soggetti.zip"
@@ -41,9 +41,10 @@ SIZES = {
     "grande impresa": Company.SizeClass.LARGE,
 }
 
+NON_COMMERCIAL_PREFIXES = ("8", "9")
+
 FIRST_VALUE_COLUMNS = [
-    "OC_DENOMINAZIONE_SOGG", "COD_FORMA_GIURIDICA_SOGG", "DESCR_FORMA_GIURIDICA_SOGG",
-    "INDIRIZZO_SOGG", "CAP_SOGG", "COD_ATECO_SOGG", "DESCRIZIONE_ATECO_SOGG",
+    "OC_DENOMINAZIONE_SOGG", "INDIRIZZO_SOGG", "CAP_SOGG", "COD_ATECO_SOGG", "DESCRIZIONE_ATECO_SOGG",
     "DESCR_ADDETTI_SOGG", "DESCR_DIMENSIONE_SOGG",
 ]
 
@@ -55,8 +56,8 @@ def get_source():
     return source
 
 
-def latest_file(raw_dir: Path):
-    files = sorted(raw_dir.glob(f"{FILE_PREFIX}*.zip"))
+def latest_file(raw_dir: Path, prefix: str = FILE_PREFIX):
+    files = sorted(raw_dir.glob(f"{prefix}*.zip"))
     return files[-1] if files else None
 
 
@@ -66,14 +67,14 @@ def raw_dir() -> Path:
     return path
 
 
-def download(directory: Path) -> Path:
-    tmp = directory / f".{FILE_PREFIX}download.tmp"
-    request = Request(DOWNLOAD_URL, headers={"User-Agent": "apulia-intelligence-importer"})
+def download(directory: Path, url: str = DOWNLOAD_URL, prefix: str = FILE_PREFIX) -> Path:
+    tmp = directory / f".{prefix}download.tmp"
+    request = Request(url, headers={"User-Agent": "apulia-intelligence-importer"})
     with urlopen(request, timeout=120) as response, open(tmp, "wb") as out:
         shutil.copyfileobj(response, out)
     data_date = _data_date(tmp)
     stamp = data_date.strftime("%Y%m%d") if data_date else date.today().strftime("%Y%m%d")
-    target = directory / f"{FILE_PREFIX}{stamp}.zip"
+    target = directory / f"{prefix}{stamp}.zip"
     tmp.replace(target)
     return target
 
@@ -113,7 +114,9 @@ def _collect(path: Path, stats):
     """Group rows by VAT number, keeping candidate Puglia businesses only."""
     companies = {}
     comuni = defaultdict(Counter)
+    legal_forms = defaultdict(Counter)
     projects = defaultdict(set)
+    outside = set()
     skipped = stats["skipped_rows"]
 
     for row in _rows(path):
@@ -122,6 +125,9 @@ def _collect(path: Path, stats):
         if len(vat) != 11 or not vat.isdigit():
             skipped["not_company_code"] += 1
             continue
+        if vat.startswith(NON_COMMERCIAL_PREFIXES):
+            skipped["non_commercial_entity"] += 1
+            continue
         if not (row.get("COD_FORMA_GIURIDICA_SOGG") or "").startswith(BUSINESS_LEGAL_FORMS):
             skipped["not_business"] += 1
             continue
@@ -129,6 +135,8 @@ def _collect(path: Path, stats):
             skipped["invalid_vat"] += 1
             continue
         comune = (row.get("COD_COMUNE_SEDE_SOGG") or "").strip()
+        if comune and not comune.startswith(PUGLIA_REGION_CODE):
+            outside.add(vat)
         if not comune.startswith(PUGLIA_REGION_CODE) and province_from_vat(vat) is None:
             skipped["outside_puglia"] += 1
             continue
@@ -141,22 +149,29 @@ def _collect(path: Path, stats):
                 record[column] = value
         if comune:
             comuni[vat][comune] += 1
+        legal_forms[vat][(row.get("COD_FORMA_GIURIDICA_SOGG") or "", row.get("DESCR_FORMA_GIURIDICA_SOGG") or "")] += 1
         projects[vat].add(row.get("COD_LOCALE_PROGETTO"))
 
     for vat, record in companies.items():
         record["comune"] = comuni[vat].most_common(1)[0][0] if comuni[vat] else ""
+        record["COD_FORMA_GIURIDICA_SOGG"], record["DESCR_FORMA_GIURIDICA_SOGG"] = legal_forms[vat].most_common(1)[0][0]
+        record["outside_municipality"] = vat in outside
     return companies, {vat: len(p) for vat, p in projects.items()}
 
 
 def _fields(vat, record, stats):
     """Map one aggregated record to {field: (value, raw, assurance, confidence)}, or None to exclude."""
     official = Assurance.OFFICIAL
-    name = clean_text(record.get("OC_DENOMINAZIONE_SOGG"))
+    name = clean_name(record.get("OC_DENOMINAZIONE_SOGG"))
     if not name or name == vat:
         stats["excluded_companies"]["no_name"] += 1
         return None
     comune = record["comune"]
     fields = {}
+
+    if province_from_vat(vat) is None and record["outside_municipality"]:
+        stats["excluded_companies"]["registered_outside_puglia"] += 1
+        return None
 
     if comune:
         if not comune.startswith(PUGLIA_REGION_CODE):
@@ -176,7 +191,7 @@ def _fields(vat, record, stats):
         fields[field] = (clean_text(raw), raw, official, None)
 
     fields["tax_code"] = (vat, vat, official, None)
-    text("name", "OC_DENOMINAZIONE_SOGG")
+    fields["name"] = (name, record.get("OC_DENOMINAZIONE_SOGG", ""), official, None)
     text("legal_form_code", "COD_FORMA_GIURIDICA_SOGG")
     text("legal_form", "DESCR_FORMA_GIURIDICA_SOGG")
     text("address", "INDIRIZZO_SOGG")
@@ -264,6 +279,22 @@ def _save_batch(batch, snapshot, stats):
     )
 
 
+def _prune(found, stats, prune):
+    stale = set(Company.objects.values_list("vat_number", flat=True)) - found
+    stats["stale"] = len(stale)
+    stats["pruned"] = 0
+    if not prune or not stale:
+        return
+    protected = set(
+        FieldProvenance.objects.exclude(snapshot__source__code=SOURCE["code"])
+        .values_list("company__vat_number", flat=True)
+    )
+    to_delete = sorted(stale - protected)
+    for start in range(0, len(to_delete), 500):
+        Company.objects.filter(vat_number__in=to_delete[start:start + 500]).delete()
+    stats["pruned"] = len(to_delete)
+
+
 def _new_stats():
     return {
         "rows_read": 0,
@@ -278,7 +309,7 @@ def _new_stats():
     }
 
 
-def run_import(path, *, force=False, batch_size=1000, progress=None):
+def run_import(path, *, force=False, prune=False, batch_size=1000, progress=None):
     path = Path(path)
     source = get_source()
     checksum = _checksum(path)
@@ -294,11 +325,12 @@ def run_import(path, *, force=False, batch_size=1000, progress=None):
     stats = _new_stats()
     companies, projects = _collect(path, stats)
 
-    batch = []
+    batch, found = [], set()
     for vat, record in companies.items():
         fields = _fields(vat, record, stats)
         if fields is None:
             continue
+        found.add(vat)
         stats["companies_found"] += 1
         batch.append((vat, fields))
         if len(batch) >= batch_size:
@@ -310,6 +342,9 @@ def run_import(path, *, force=False, batch_size=1000, progress=None):
     if batch:
         with transaction.atomic():
             _save_batch(batch, snapshot, stats)
+
+    with transaction.atomic():
+        _prune(found, stats, prune)
 
     summary = {k: dict(v) if isinstance(v, Counter) else v for k, v in stats.items()}
     snapshot.stats = {**summary, "complete": True}

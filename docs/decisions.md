@@ -13,4 +13,9 @@
 | 2026-11-03 | Serverplan VPS with Docker Compose (not shared hosting) | Same setup as local; long imports and background jobs allowed |
 | 2026-11-03 | Per-field provenance table (`FieldProvenance`) instead of columns on `Company` | Every value traceable to a snapshot with an assurance level, as the requirements demand |
 | 2026-11-03 | Store ATECO version (empty when unknown) | Sources use 2007/2022 codes; ATECO 2025 renumbers sections |
+| 2026-11-04 | Vue 3 + Vite + TS frontend, vue-i18n IT/EN, light/dark theme | User's frontend rules |
+| 2026-11-04 | Product name "Puglia Imprese" (replaces "Apilia"); blue accent, small corner radius (4–6px) | User's choice |
+| 2026-11-04 | Company funding = public funding of projects where it is the **sole** beneficiary; shared projects listed but not summed | Project amounts are whole-project totals; summing across shared projects or non-beneficiary roles inflated figures (€70bn) |
+| 2026-11-04 | Exclude tax codes starting 8/9 and out-of-region VATs with any non-Puglia municipality | Removed public bodies (CNR, universities) and national companies (RFI, Telecom) from the Puglia list |
+| 2026-11-04 | All CSS in one global `<style>` in App.vue, enforced by ESLint | User's choice: no scoped styles, no CSS files |
 | 2026-11-04 | Companies only: legal forms 1.2, 1.3, 1.4, 1.5, 1.9 | Sole traders' names are personal data (GDPR); associations, foundations and anonymous records are not companies |

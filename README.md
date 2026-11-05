@@ -1,6 +1,6 @@
 # Apulia Intelligence
 
-Company and market intelligence platform for businesses in Puglia.
+**Puglia Imprese**: company and market intelligence platform for businesses in Puglia.
 
 Documentation: [docs/](docs/README.md)
 
@@ -29,10 +29,18 @@ docker compose up --build
 API docs: http://localhost:8000/api/docs
 Health check: http://localhost:8000/api/health
 
+## Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev      # http://localhost:5173 (Django must be running on :8000)
+```
+
 ## Tests
 
 ```bash
-sh scripts/check.sh   # same checks as CI
+sh scripts/check.sh   # same checks as CI (backend, plus frontend if node_modules exists)
 ```
 
 Enable the pre-push hook once per clone, so pushes are blocked when checks fail:

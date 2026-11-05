@@ -1,6 +1,6 @@
 from django.test import SimpleTestCase
 
-from apps.companies.text import clean_text
+from apps.companies.text import clean_name, clean_text
 
 
 class CleanTextTests(SimpleTestCase):
@@ -30,3 +30,37 @@ class CleanTextTests(SimpleTestCase):
     def test_empty(self):
         self.assertEqual(clean_text(None), "")
         self.assertEqual(clean_text("   "), "")
+
+
+class CleanNameTests(SimpleTestCase):
+    def test_csv_escaped_quotes(self):
+        cases = {
+            '"" GEA CONSULTING SRLS': "GEA CONSULTING SRLS",
+            '""" T.F. PLAST DI BLASI GIUSEPPE E F. S.N.C': "T.F. PLAST DI BLASI GIUSEPPE E F. S.N.C",
+            '"""PHARMAEFFE S.A.S. DI FOGLIA GIOACCHINO & C': "PHARMAEFFE S.A.S. DI FOGLIA GIOACCHINO & C",
+            '"""AL.AN. SAS"" DI ALBANESE ELENA': "AL.AN. SAS DI ALBANESE ELENA",
+        }
+        for raw, expected in cases.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(clean_name(raw), expected)
+
+    def test_wrapping_quotes(self):
+        self.assertEqual(
+            clean_name('"DAMIANI COSTRUZIONI S.N.C. DI DAMIANI RINALDO & C."'),
+            "DAMIANI COSTRUZIONI S.N.C. DI DAMIANI RINALDO & C.",
+        )
+        self.assertEqual(clean_name("' AL FARO - S.R.L. '"), "AL FARO - S.R.L.")
+        self.assertEqual(clean_name('"ECONHER SRL'), "ECONHER SRL")
+
+    def test_accent_apostrophes_are_kept(self):
+        self.assertEqual(clean_name('"ALTERECO - SOCIETA\' COOPERATIVA SOCIALE"'), "ALTERECO - SOCIETA' COOPERATIVA SOCIALE")
+        self.assertEqual(clean_name("BAR CAFFE'"), "BAR CAFFE'")
+        self.assertEqual(clean_name("SOCIETA' AGRICOLA ROSSI"), "SOCIETA' AGRICOLA ROSSI")
+
+    def test_balanced_inner_quotes_are_kept(self):
+        self.assertEqual(clean_name('CONSORZIO "LA RETE" SCARL'), 'CONSORZIO "LA RETE" SCARL')
+        self.assertEqual(clean_name('CONSORZIO ""LA RETE"" SCARL'), 'CONSORZIO "LA RETE" SCARL')
+
+    def test_also_cleans_text(self):
+        self.assertEqual(clean_name('"CAFFÃ\xa0  ROMA  SRL"'), "CAFFà ROMA SRL")
+        self.assertEqual(clean_name('""'), "")

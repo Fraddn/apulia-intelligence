@@ -2,7 +2,8 @@
 # Same checks as CI. Used by the pre-push hook and tests.yml.
 set -eu
 
-cd "$(dirname "$0")/../backend"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/backend"
 
 if [ -n "${PYTHON:-}" ]; then :
 elif [ -n "${VIRTUAL_ENV:-}" ]; then PYTHON="$VIRTUAL_ENV/bin/python"
@@ -13,7 +14,13 @@ fi
 export SECRET_KEY="${SECRET_KEY:-check-secret-key}"
 export DEBUG=False
 export SECURE_SSL_REDIRECT=False
+export APP_VERSION="${APP_VERSION:-check}"
 
 "$PYTHON" manage.py check --deploy --fail-level ERROR
 "$PYTHON" manage.py makemigrations --check --dry-run
 "$PYTHON" manage.py test
+
+if [ "${SKIP_FRONTEND:-}" != "1" ] && [ -d "$ROOT/frontend/node_modules" ]; then
+  cd "$ROOT/frontend"
+  npm run --silent check
+fi

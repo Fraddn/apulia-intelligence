@@ -3,6 +3,8 @@ from pathlib import Path
 
 import environ
 
+from apps.core.version import resolve_version
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env(
@@ -17,6 +19,7 @@ DATA_DIR = Path(env("DATA_DIR", default=str(BASE_DIR.parent / "data")))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 SECRET_KEY = env("SECRET_KEY")
+APP_VERSION = resolve_version(env("APP_VERSION", default=""))
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 CSRF_TRUSTED_ORIGINS = env("CSRF_TRUSTED_ORIGINS")
@@ -111,6 +114,8 @@ if TESTING:
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- allauth ---------------------------------------------------------------
+LOGIN_REDIRECT_URL = "/"
+ACCOUNT_LOGOUT_REDIRECT_URL = "/"
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = "optional"

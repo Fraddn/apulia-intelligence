@@ -146,3 +146,55 @@ class FieldProvenance(models.Model):
 
     def __str__(self):
         return f"{self.company.vat_number}.{self.field} ← {self.snapshot}"
+
+
+class Project(models.Model):
+    class Status(models.TextChoices):
+        NOT_STARTED = "not_started", "Not started"
+        ONGOING = "ongoing", "Ongoing"
+        COMPLETED = "completed", "Completed"
+        SETTLED = "settled", "Settled"
+        UNKNOWN = "unknown", "Unknown"
+
+    code = models.CharField(max_length=100, unique=True)
+    cup = models.CharField(max_length=20, blank=True)
+    title = models.TextField()
+    summary = models.TextField(blank=True)
+    theme_code = models.CharField(max_length=2, blank=True, db_index=True)
+    theme = models.CharField(max_length=100, blank=True)
+    cycle = models.CharField(max_length=100, blank=True)
+    status = models.CharField(max_length=12, choices=Status, default=Status.UNKNOWN)
+    public_funding = models.DecimalField(max_digits=16, decimal_places=2, null=True, blank=True)
+    eu_funding = models.DecimalField(max_digits=16, decimal_places=2, null=True, blank=True)
+    payments = models.DecimalField(max_digits=16, decimal_places=2, null=True, blank=True)
+    start_date = models.DateField(null=True, blank=True)
+    expected_end_date = models.DateField(null=True, blank=True)
+    actual_end_date = models.DateField(null=True, blank=True)
+    beneficiaries_count = models.PositiveIntegerField(default=0)
+    url = models.URLField(blank=True)
+    snapshot = models.ForeignKey(SourceSnapshot, on_delete=models.PROTECT, related_name="projects")
+
+    class Meta:
+        ordering = ["-start_date", "code"]
+
+    def __str__(self):
+        return f"{self.code}: {self.title[:60]}"
+
+
+class ProjectRole(models.Model):
+    class Role(models.TextChoices):
+        BENEFICIARY = "beneficiary", "Beneficiary"
+        IMPLEMENTER = "implementer", "Implementer"
+        CONTRACTOR = "contractor", "Contractor"
+        PROGRAMMER = "programmer", "Programming authority"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="project_roles")
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="roles")
+    role = models.CharField(max_length=12, choices=Role)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["company", "project", "role"], name="unique_project_role")]
+        indexes = [models.Index(fields=["company", "role"])]
+
+    def __str__(self):
+        return f"{self.company.vat_number} {self.role} {self.project.code}"

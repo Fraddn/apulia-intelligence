@@ -25,3 +25,16 @@ def clean_text(value) -> str:
         return ""
     value = _fix_mojibake(value).replace("§;", ";")
     return re.sub(r"\s+", " ", value).strip()
+
+
+def clean_name(value) -> str:
+    """clean_text plus removal of CSV-escaped, wrapping and unbalanced quotes; accent apostrophes stay."""
+    name = clean_text(value)
+    wrapped_in_apostrophes = name.startswith("'")
+    name = re.sub(r'"{2,}', '"', name).strip('" ')
+    if name.count('"') % 2:
+        name = name.replace('"', "")
+    name = name.lstrip("' ")
+    if wrapped_in_apostrophes or name.endswith(" '"):
+        name = name.rstrip("' ")
+    return re.sub(r"\s+", " ", name).strip()
