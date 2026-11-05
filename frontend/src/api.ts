@@ -161,6 +161,9 @@ export interface CompanyQuery {
   division?: string
   theme?: string
   funded?: boolean
+  size?: string
+  min_projects?: number
+  min_funding?: number
   sort?: CompanySort
   page?: number
   page_size?: number

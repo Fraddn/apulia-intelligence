@@ -41,11 +41,13 @@ function lastRequest(fetchMock: ReturnType<typeof vi.fn>) {
 
 describe('CompaniesView filters', () => {
   it('sends all filters and the sort order from the URL', async () => {
-    const { fetchMock } = await render('/companies?section=J&division=62&funded=true&theme=01&sort=funding')
+    const { fetchMock } = await render('/companies?section=J&division=62&theme=01&size=sme&min_projects=2&min_funding=100000&sort=funding')
     const params = lastRequest(fetchMock)
     expect(params.get('section')).toBe('J')
     expect(params.get('division')).toBe('62')
-    expect(params.get('funded')).toBe('true')
+    expect(params.get('size')).toBe('sme')
+    expect(params.get('min_projects')).toBe('2')
+    expect(params.get('min_funding')).toBe('100000')
     expect(params.get('theme')).toBe('01')
     expect(params.get('sort')).toBe('funding')
   })
@@ -66,11 +68,14 @@ describe('CompaniesView filters', () => {
     expect(router.currentRoute.value.query.division).toBeUndefined()
   })
 
-  it('toggles the funded filter and changes sorting', async () => {
+  it('sets size, project and funding filters and changes sorting', async () => {
     const { wrapper, router } = await render('/companies')
-    await wrapper.find('input[name="funded"]').setValue(true)
-    await flushPromises()
-    expect(router.currentRoute.value.query.funded).toBe('true')
+    for (const [name, value] of [['size', 'large'], ['min_projects', '5'], ['min_funding', '1000000']]) {
+      await wrapper.find(`select[name="${name}"]`).setValue(value)
+      await flushPromises()
+    }
+    expect(router.currentRoute.value.query).toMatchObject({ size: 'large', min_projects: '5', min_funding: '1000000' })
+    expect(wrapper.find('select[name="min_funding"] option[value="1000000"]').text()).toBe('At least €1,000,000')
     await wrapper.find('select[name="sort"]').setValue('projects')
     await flushPromises()
     expect(router.currentRoute.value.query.sort).toBe('projects')

@@ -207,6 +207,20 @@ class FundingApiTests(ApiTestCase):
         self.assertEqual(by_projects[:2], ["ALFA INFORMATICA SRL", "GAMMA SOFTWARE SPA"])
         self.assertEqual(self.client.get("/api/companies?sort=random").status_code, 422)
 
+    def test_filter_by_size_where_sme_includes_micro_small_medium(self):
+        self.assertEqual([c["name"] for c in self.list("?size=small")["items"]], ["ALFA INFORMATICA SRL"])
+        self.assertEqual([c["name"] for c in self.list("?size=sme")["items"]], ["ALFA INFORMATICA SRL"])
+        self.assertEqual([c["name"] for c in self.list("?size=large")["items"]], ["GAMMA SOFTWARE SPA"])
+        self.assertEqual(self.list("?size=unknown")["count"], 3)
+        self.assertEqual(self.client.get("/api/companies?size=huge").status_code, 422)
+
+    def test_filter_by_minimum_projects_and_funding(self):
+        self.assertEqual(self.list("?min_projects=2")["count"], 2)
+        self.assertEqual(self.list("?min_projects=3")["count"], 0)
+        self.assertEqual([c["name"] for c in self.list("?min_funding=60000")["items"]], ["ALFA INFORMATICA SRL"])
+        self.assertEqual(self.list("?min_funding=50000&size=large")["count"], 1)
+        self.assertEqual(self.client.get("/api/companies?min_projects=0").status_code, 422)
+
     def test_filters_combine_with_section_and_search(self):
         self.assertEqual(self.list("?section=J&division=62&funded=true&search=gamma")["count"], 1)
 

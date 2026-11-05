@@ -64,7 +64,12 @@ export default {
     sector: 'Sector',
     subsector: 'Sub-sector',
     theme: 'Project theme',
-    fundedOnly: 'With funded projects only',
+    size: 'Size',
+    smeAll: 'SME (incl. micro, small, medium)',
+    minProjects: 'Funded projects',
+    atLeastProjects: 'At least {count} project | At least {count} project | At least {count} projects',
+    minFunding: 'Funding',
+    atLeast: 'At least {amount}',
     sortBy: 'Sort by',
     sort: {
       name: 'Name',

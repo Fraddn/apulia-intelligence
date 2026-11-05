@@ -27,13 +27,12 @@
               <DiscoveryStatus :searching="discovering" :discovery="discovery" />
               <WebsiteStatus :check="company.website_check" />
             </template>
-            <dl class="company__fields">
+            <dl v-if="group.rows.length" class="company__fields">
               <div v-for="row in group.rows" :key="row.field" class="company__row">
                 <dt class="company__term">{{ t(`company.fields.${row.field}`) }}</dt>
                 <dd class="company__value">
                   <a v-if="row.href && row.value" :href="row.href" :target="row.href.startsWith('http') ? '_blank' : undefined" rel="noopener">{{ row.value }}</a>
-                  <span v-else-if="row.value">{{ row.value }}</span>
-                  <span v-else class="muted">{{ t('common.notAvailable') }}</span>
+                  <span v-else>{{ row.value }}</span>
                   <span v-if="row.provenance" class="company__source">
                     <AssuranceBadge :assurance="row.provenance.assurance" />
                     <span class="muted">
@@ -187,7 +186,7 @@ const groups = computed(() => {
   const c = company.value
   if (!c) return []
   const derivedProvince = provenance.value.get('province')?.assurance === 'derived'
-  return [
+  const all = [
     {
       title: t('company.identity'),
       rows: [
@@ -232,6 +231,9 @@ const groups = computed(() => {
       ],
     },
   ]
+  return all
+    .map((group) => ({ ...group, rows: group.rows.filter((row) => row.value) }))
+    .filter((group) => group.rows.length || group.key === 'location')
 })
 
 function showRaw(r: Row) {

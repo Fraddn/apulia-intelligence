@@ -44,9 +44,26 @@
           <option v-for="code in THEMES" :key="code" :value="code">{{ t(`funding.themes.${code}`) }}</option>
         </select>
       </label>
-      <label class="companies__filter companies__check">
-        <input name="funded" type="checkbox" :checked="filters.funded === 'true'" @change="setFunded">
-        <span>{{ t('companies.fundedOnly') }}</span>
+      <label class="companies__filter">
+        <span class="visually-hidden">{{ t('companies.size') }}</span>
+        <select name="size" class="input" :value="filters.size" :aria-label="t('companies.size')" @change="setFilter('size', $event)">
+          <option value="">{{ t('companies.size') }}: {{ t('common.all') }}</option>
+          <option v-for="code in SIZES" :key="code" :value="code">{{ code === 'sme' ? t('companies.smeAll') : t(`size.${code}`) }}</option>
+        </select>
+      </label>
+      <label class="companies__filter">
+        <span class="visually-hidden">{{ t('companies.minProjects') }}</span>
+        <select name="min_projects" class="input" :value="filters.min_projects" :aria-label="t('companies.minProjects')" @change="setFilter('min_projects', $event)">
+          <option value="">{{ t('companies.minProjects') }}: {{ t('common.all') }}</option>
+          <option v-for="value in PROJECT_STEPS" :key="value" :value="String(value)">{{ t('companies.atLeastProjects', { count: n(value) }, value) }}</option>
+        </select>
+      </label>
+      <label class="companies__filter">
+        <span class="visually-hidden">{{ t('companies.minFunding') }}</span>
+        <select name="min_funding" class="input" :value="filters.min_funding" :aria-label="t('companies.minFunding')" @change="setFilter('min_funding', $event)">
+          <option value="">{{ t('companies.minFunding') }}: {{ t('common.all') }}</option>
+          <option v-for="value in FUNDING_STEPS" :key="value" :value="String(value)">{{ t('companies.atLeast', { amount: formatCurrency(value, locale) }) }}</option>
+        </select>
       </label>
       <label class="companies__filter companies__sort">
         <span>{{ t('companies.sortBy') }}</span>
@@ -127,7 +144,10 @@ const PROVINCES = ['BA', 'BT', 'BR', 'FG', 'LE', 'TA'] as const
 const SECTIONS = 'ABCDEFGHIJKLMNOPQRSTU'.split('')
 const THEMES = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '11', '13']
 const SORTS: CompanySort[] = ['name', 'funding', 'projects']
-const FILTER_KEYS = ['search', 'province', 'section', 'division', 'theme', 'funded'] as const
+const SIZES = ['sme', 'micro', 'small', 'medium', 'large', 'unknown'] as const
+const PROJECT_STEPS = [1, 2, 5, 10]
+const FUNDING_STEPS = [10_000, 50_000, 100_000, 500_000, 1_000_000, 5_000_000]
+const FILTER_KEYS = ['search', 'province', 'section', 'division', 'theme', 'size', 'min_projects', 'min_funding'] as const
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -143,7 +163,9 @@ const filters = computed(() => ({
   section: String(route.query.section ?? ''),
   division: String(route.query.division ?? ''),
   theme: String(route.query.theme ?? ''),
-  funded: String(route.query.funded ?? ''),
+  size: String(route.query.size ?? ''),
+  min_projects: String(route.query.min_projects ?? ''),
+  min_funding: String(route.query.min_funding ?? ''),
   sort: String(route.query.sort ?? ''),
 }))
 const divisions = computed(() => divisionsFor(filters.value.section))
@@ -172,16 +194,12 @@ function updateQuery(changes: Record<string, string>, keepPage = false) {
   router.replace({ query: Object.fromEntries(Object.entries(query).filter(([, v]) => v)) })
 }
 
-function setFilter(key: 'province' | 'division' | 'theme', event: Event) {
+function setFilter(key: 'province' | 'division' | 'theme' | 'size' | 'min_projects' | 'min_funding', event: Event) {
   updateQuery({ [key]: (event.target as HTMLSelectElement).value })
 }
 
 function setSection(event: Event) {
   updateQuery({ section: (event.target as HTMLSelectElement).value, division: '' })
-}
-
-function setFunded(event: Event) {
-  updateQuery({ funded: (event.target as HTMLInputElement).checked ? 'true' : '' })
 }
 
 function setSort(event: Event) {
@@ -205,10 +223,11 @@ async function load() {
   loading.value = true
   failed.value = false
   try {
-    const { funded, sort, ...rest } = filters.value
+    const { sort, min_projects, min_funding, ...rest } = filters.value
     const result = await api.companies({
       ...rest,
-      funded: funded === 'true' || undefined,
+      min_projects: Number(min_projects) || undefined,
+      min_funding: Number(min_funding) || undefined,
       sort: (sort || undefined) as CompanySort | undefined,
       page: currentPage.value,
       page_size: PAGE_SIZE,

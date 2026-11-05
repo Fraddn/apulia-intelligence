@@ -67,7 +67,12 @@ const it: typeof en = {
     sector: 'Settore',
     subsector: 'Sottosettore',
     theme: 'Tema dei progetti',
-    fundedOnly: 'Solo con progetti finanziati',
+    size: 'Dimensione',
+    smeAll: 'PMI (incluse micro, piccole, medie)',
+    minProjects: 'Progetti finanziati',
+    atLeastProjects: 'Almeno {count} progetti | Almeno {count} progetto | Almeno {count} progetti',
+    minFunding: 'Finanziamento',
+    atLeast: 'Almeno {amount}',
     sortBy: 'Ordina per',
     sort: {
       name: 'Nome',

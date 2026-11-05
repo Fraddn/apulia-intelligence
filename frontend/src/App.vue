@@ -833,18 +833,11 @@ a.project-list__title:hover {
   max-width: 280px;
 }
 
-.companies__check,
 .companies__sort {
   align-items: center;
   gap: 8px;
   color: var(--text-2);
   white-space: nowrap;
-}
-
-.companies__check input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--accent-strong);
 }
 
 .companies__sort {

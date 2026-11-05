@@ -141,6 +141,10 @@ class DiscoverResultOut(Schema):
     company: CompanyDetailOut
 
 
+SizeOption = Literal["micro", "small", "medium", "sme", "large", "unknown"]
+SME_CLASSES = ["micro", "small", "medium", "sme"]
+
+
 class CompanyFilters(FilterSchema):
     search: str | None = None
     province: ProvinceCode | None = None
@@ -149,6 +153,22 @@ class CompanyFilters(FilterSchema):
     ateco: str | None = None
     funded: bool | None = None
     theme: str | None = Field(None, pattern=r"^\d{2}$")
+    size: SizeOption | None = None
+    min_projects: int | None = Field(None, ge=1)
+    min_funding: int | None = Field(None, ge=1)
+
+    def filter_size(self, value):
+        if not value:
+            return Q()
+        if value == Company.SizeClass.SME:
+            return Q(size_class__in=SME_CLASSES)
+        return Q(size_class=value)
+
+    def filter_min_projects(self, value):
+        return Q(beneficiary_projects__gte=value) if value else Q()
+
+    def filter_min_funding(self, value):
+        return Q(sole_beneficiary_funding__gte=value) if value else Q()
 
     def filter_search(self, value):
         return Q(name__icontains=value) | Q(vat_number__startswith=value) if value else Q()
@@ -242,7 +262,7 @@ class StatsOut(Schema):
 @router.get("/companies", response=list[CompanyListItemOut])
 @paginate(PageNumberPagination, page_size=25, max_page_size=100)
 def list_companies(request, filters: Query[CompanyFilters], sort: SortOption = "name"):
-    return _with_funding(filters.filter(Company.objects.all())).order_by(*ORDERINGS[sort])
+    return filters.filter(_with_funding(Company.objects.all())).order_by(*ORDERINGS[sort])
 
 
 @router.get("/companies/{vat_number}", response=CompanyDetailOut)
