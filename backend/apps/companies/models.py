@@ -60,6 +60,7 @@ class Company(models.Model):
         MICRO = "micro", "Micro"
         SMALL = "small", "Small"
         MEDIUM = "medium", "Medium"
+        SME = "sme", "SME"
         LARGE = "large", "Large"
         UNKNOWN = "unknown", "Unknown"
 
@@ -198,3 +199,34 @@ class ProjectRole(models.Model):
 
     def __str__(self):
         return f"{self.company.vat_number} {self.role} {self.project.code}"
+
+
+class StateAid(models.Model):
+    """One aid grant from the national state-aid register (RNA), identified by its COR code."""
+
+    cor = models.CharField(max_length=30, unique=True)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="aids")
+    measure_code = models.CharField(max_length=30, blank=True)
+    measure_title = models.TextField(blank=True)
+    measure_type = models.CharField(max_length=100, blank=True)
+    granting_body = models.CharField(max_length=255, blank=True)
+    project_title = models.TextField(blank=True)
+    project_description = models.TextField(blank=True)
+    granted_on = models.DateField(null=True, blank=True, db_index=True)
+    cup = models.CharField(max_length=20, blank=True)
+    procedures = models.CharField(max_length=255, blank=True)
+    objectives = models.TextField(blank=True)
+    instruments = models.CharField(max_length=255, blank=True)
+    sector = models.CharField(max_length=50, blank=True)
+    aid_amount = models.DecimalField(max_digits=16, decimal_places=2, null=True, blank=True)
+    nominal_amount = models.DecimalField(max_digits=16, decimal_places=2, null=True, blank=True)
+    beneficiary_size = models.CharField(max_length=50, blank=True)
+    transparency_url = models.CharField(max_length=1000, blank=True)
+    snapshot = models.ForeignKey(SourceSnapshot, on_delete=models.PROTECT, related_name="aids")
+
+    class Meta:
+        ordering = ["-granted_on", "cor"]
+        indexes = [models.Index(fields=["company", "granted_on"])]
+
+    def __str__(self):
+        return f"{self.cor}: {self.company.vat_number} {self.aid_amount}"

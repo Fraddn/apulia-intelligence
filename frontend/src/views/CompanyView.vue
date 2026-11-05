@@ -84,6 +84,23 @@
           </template>
           <p v-else class="muted company__hint">{{ t('funding.none') }}</p>
         </article>
+
+        <article class="card company__funding">
+          <h2 class="company__group-title">{{ t('aid.title') }}</h2>
+          <template v-if="company.aid.count">
+            <div class="company__funding-tiles">
+              <StatTile :label="t('aid.grants')" :value="formatNumber(company.aid.count, locale)" />
+              <StatTile
+                :label="t('aid.total')"
+                :value="company.aid.total_amount === null ? '–' : formatCurrency(company.aid.total_amount, locale)"
+              />
+              <StatTile :label="t('aid.latest')" :value="formatDate(company.aid.latest_date, locale)" />
+            </div>
+            <p class="muted company__hint">{{ t('aid.rule') }}</p>
+            <AidList :items="company.aid.items" :total="company.aid.count" />
+          </template>
+          <p v-else class="muted company__hint">{{ t('aid.none') }}</p>
+        </article>
       </template>
     </LoadState>
   </section>
@@ -93,6 +110,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ApiError, api, type CompanyDetail, type Provenance, type Source } from '../api'
+import AidList from '../components/AidList.vue'
 import AssuranceBadge from '../components/AssuranceBadge.vue'
 import LoadState from '../components/LoadState.vue'
 import ProjectList from '../components/ProjectList.vue'

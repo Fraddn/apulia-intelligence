@@ -1,16 +1,18 @@
 from datetime import date, datetime
 from typing import Literal
 
-from django.db.models import Case, Count, IntegerField, Q, Sum, Value, When
+from django.db.models import Case, Count, Exists, F, IntegerField, Max, OuterRef, Q, Subquery, Sum, Value, When
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
-from ninja import FilterSchema, Query, Router, Schema
+from ninja import Field, FilterSchema, Query, Router, Schema
 from ninja.pagination import PageNumberPagination, paginate
 
-from .models import Company, FieldProvenance, Project, ProjectRole, Source
+from .models import Company, FieldProvenance, Project, ProjectRole, Source, StateAid
 
 router = Router(tags=["companies"])
 
 PROJECTS_LIMIT = 50
+AID_LIMIT = 50
 
 ProvinceCode = Literal["BA", "BT", "BR", "FG", "LE", "TA"]
 
@@ -23,6 +25,11 @@ class CompanyListOut(Schema):
     ateco_section: str
     ateco_code: str
     size_class: str
+
+
+class CompanyListItemOut(CompanyListOut):
+    beneficiary_projects: int
+    sole_beneficiary_funding: float | None
 
 
 class SourceOut(Schema):
@@ -68,6 +75,26 @@ class ProjectOut(Schema):
     url: str
 
 
+class StateAidOut(Schema):
+    cor: str
+    granted_on: date | None
+    measure_title: str
+    granting_body: str
+    project_title: str
+    objectives: str
+    procedures: str
+    instruments: str
+    aid_amount: float | None
+    transparency_url: str
+
+
+class CompanyAidOut(Schema):
+    count: int
+    total_amount: float | None
+    latest_date: date | None
+    items: list[StateAidOut]
+
+
 class CompanyDetailOut(CompanyListOut):
     tax_code: str
     legal_form_code: str
@@ -86,13 +113,17 @@ class CompanyDetailOut(CompanyListOut):
     funding: FundingOut
     projects: list[ProjectOut]
     projects_total: int
+    aid: CompanyAidOut
 
 
 class CompanyFilters(FilterSchema):
     search: str | None = None
     province: ProvinceCode | None = None
     section: str | None = None
+    division: str | None = Field(None, pattern=r"^\d{2}$")
     ateco: str | None = None
+    funded: bool | None = None
+    theme: str | None = Field(None, pattern=r"^\d{2}$")
 
     def filter_search(self, value):
         return Q(name__icontains=value) | Q(vat_number__startswith=value) if value else Q()
@@ -102,6 +133,41 @@ class CompanyFilters(FilterSchema):
 
     def filter_ateco(self, value):
         return Q(ateco_code__startswith=value) if value else Q()
+
+    def filter_division(self, value):
+        return Q(ateco_code__startswith=value) if value else Q()
+
+    def filter_funded(self, value):
+        return Q(Exists(_beneficiary_roles())) if value else Q()
+
+    def filter_theme(self, value):
+        return Q(Exists(_beneficiary_roles().filter(project__theme_code=value))) if value else Q()
+
+
+SortOption = Literal["name", "funding", "projects"]
+
+
+def _beneficiary_roles():
+    return ProjectRole.objects.filter(company=OuterRef("pk"), role=ProjectRole.Role.BENEFICIARY)
+
+
+def _with_funding(queryset):
+    count = _beneficiary_roles().values("company").annotate(n=Count("id")).values("n")
+    total = (
+        _beneficiary_roles().filter(project__beneficiaries_count=1)
+        .values("company").annotate(total=Sum("project__public_funding")).values("total")
+    )
+    return queryset.annotate(
+        beneficiary_projects=Coalesce(Subquery(count, output_field=IntegerField()), 0),
+        sole_beneficiary_funding=Subquery(total),
+    )
+
+
+ORDERINGS = {
+    "name": ["name", "vat_number"],
+    "funding": [F("sole_beneficiary_funding").desc(nulls_last=True), "name"],
+    "projects": ["-beneficiary_projects", "name"],
+}
 
 
 class ProvinceCount(Schema):
@@ -131,6 +197,12 @@ class FundingStatsOut(Schema):
     by_theme: list[ThemeCount]
 
 
+class AidStatsOut(Schema):
+    companies: int
+    grants: int
+    total_amount: float
+
+
 class StatsOut(Schema):
     total: int
     with_ateco: int
@@ -139,12 +211,13 @@ class StatsOut(Schema):
     by_section: list[SectionCount]
     sources: list[SourceStatsOut]
     funding: FundingStatsOut
+    aid: AidStatsOut
 
 
-@router.get("/companies", response=list[CompanyListOut])
+@router.get("/companies", response=list[CompanyListItemOut])
 @paginate(PageNumberPagination, page_size=25, max_page_size=100)
-def list_companies(request, filters: Query[CompanyFilters]):
-    return filters.filter(Company.objects.order_by("name", "vat_number"))
+def list_companies(request, filters: Query[CompanyFilters], sort: SortOption = "name"):
+    return _with_funding(filters.filter(Company.objects.all())).order_by(*ORDERINGS[sort])
 
 
 @router.get("/companies/{vat_number}", response=CompanyDetailOut)
@@ -178,6 +251,27 @@ def get_company(request, vat_number: str):
         "funding": _company_funding(roles),
         "projects": [_project_out(r) for r in projects[:PROJECTS_LIMIT]],
         "projects_total": roles.count(),
+        "aid": _company_aid(company),
+    }
+
+
+def _company_aid(company):
+    aids = company.aids.all()
+    summary = aids.aggregate(total=Sum("aid_amount"), latest=Max("granted_on"), count=Count("id"))
+    return {
+        "count": summary["count"],
+        "total_amount": float(summary["total"]) if summary["total"] is not None else None,
+        "latest_date": summary["latest"],
+        "items": [
+            {
+                **{field: getattr(aid, field) for field in (
+                    "cor", "granted_on", "measure_title", "granting_body", "project_title",
+                    "objectives", "procedures", "instruments", "transparency_url",
+                )},
+                "aid_amount": float(aid.aid_amount) if aid.aid_amount is not None else None,
+            }
+            for aid in aids.order_by("-granted_on", "-cor")[:AID_LIMIT]
+        ],
     }
 
 
@@ -236,7 +330,7 @@ def stats(request):
         companies.exclude(ateco_section="").values("ateco_section").annotate(count=Count("id")).order_by("-count")
     )
     sources = []
-    for source in Source.objects.filter(snapshots__isnull=False).distinct():
+    for source in Source.objects.filter(snapshots__isnull=False).distinct().order_by("id"):
         snapshot = (
             source.snapshots.filter(provenance__isnull=False).distinct().order_by("-data_date", "-retrieved_at").first()
             or source.snapshots.order_by("-data_date", "-retrieved_at").first()
@@ -251,4 +345,14 @@ def stats(request):
         "by_section": [{"section": r["ateco_section"], "count": r["count"]} for r in by_section],
         "sources": sources,
         "funding": _funding_stats(),
+        "aid": _aid_stats(),
+    }
+
+
+def _aid_stats():
+    summary = StateAid.objects.aggregate(total=Sum("aid_amount"), grants=Count("id"))
+    return {
+        "companies": StateAid.objects.values("company_id").distinct().count(),
+        "grants": summary["grants"],
+        "total_amount": float(summary["total"] or 0),
     }

@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.test import TestCase
 
-from apps.companies.models import Assurance, Company, Project, ProjectRole, Source, SourceSnapshot
+from apps.companies.models import Assurance, Company, Project, ProjectRole, Source, SourceSnapshot, StateAid
 
 
 class ApiTestCase(TestCase):
@@ -45,7 +45,8 @@ class CompanyListTests(ApiTestCase):
         self.assertEqual([c["name"] for c in data["items"]][:2], ["ALFA INFORMATICA SRL", "BETA COSTRUZIONI SRL"])
         self.assertEqual(
             set(data["items"][0]),
-            {"vat_number", "name", "province", "city", "ateco_section", "ateco_code", "size_class"},
+            {"vat_number", "name", "province", "city", "ateco_section", "ateco_code", "size_class",
+             "beneficiary_projects", "sole_beneficiary_funding"},
         )
 
     def test_search_by_name_or_vat(self):
@@ -169,6 +170,46 @@ class FundingApiTests(ApiTestCase):
         self.assertEqual(data["funding"]["beneficiary_projects"], 0)
         self.assertIsNone(data["funding"]["sole_beneficiary_funding"])
 
+    def list(self, query=""):
+        response = self.client.get(f"/api/companies{query}")
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.json()
+
+    def test_list_includes_funding_columns(self):
+        items = {c["vat_number"]: c for c in self.list()["items"]}
+        self.assertEqual(items["03132170717"]["beneficiary_projects"], 2)
+        self.assertEqual(items["03132170717"]["sole_beneficiary_funding"], 100000.0)
+        self.assertEqual(items["05866880726"]["beneficiary_projects"], 2)
+        self.assertEqual(items["05866880726"]["sole_beneficiary_funding"], 50000.0)
+        self.assertEqual(items["02462780731"]["beneficiary_projects"], 0)
+        self.assertIsNone(items["02462780731"]["sole_beneficiary_funding"])
+
+    def test_filter_by_division(self):
+        self.assertEqual({c["name"] for c in self.list("?division=62")["items"]}, {"ALFA INFORMATICA SRL", "GAMMA SOFTWARE SPA"})
+        self.assertEqual(self.list("?division=41")["count"], 1)
+        self.assertEqual(self.client.get("/api/companies?division=6").status_code, 422)
+
+    def test_filter_funded(self):
+        data = self.list("?funded=true")
+        self.assertEqual({c["name"] for c in data["items"]}, {"ALFA INFORMATICA SRL", "GAMMA SOFTWARE SPA"})
+        self.assertEqual(data["count"], 2)
+
+    def test_filter_by_theme_counts_only_beneficiary_roles(self):
+        self.assertEqual({c["name"] for c in self.list("?theme=01")["items"]}, {"ALFA INFORMATICA SRL", "GAMMA SOFTWARE SPA"})
+        self.assertEqual([c["name"] for c in self.list("?theme=03")["items"]], ["GAMMA SOFTWARE SPA"])
+        self.assertEqual(self.list("?theme=07")["count"], 0)
+
+    def test_sort_by_funding_and_projects(self):
+        by_funding = [c["name"] for c in self.list("?sort=funding")["items"]]
+        self.assertEqual(by_funding[:2], ["ALFA INFORMATICA SRL", "GAMMA SOFTWARE SPA"])
+        self.assertEqual(len(by_funding), 5)
+        by_projects = [c["name"] for c in self.list("?sort=projects")["items"]]
+        self.assertEqual(by_projects[:2], ["ALFA INFORMATICA SRL", "GAMMA SOFTWARE SPA"])
+        self.assertEqual(self.client.get("/api/companies?sort=random").status_code, 422)
+
+    def test_filters_combine_with_section_and_search(self):
+        self.assertEqual(self.list("?section=J&division=62&funded=true&search=gamma")["count"], 1)
+
     def test_data_date_comes_from_company_data_not_projects(self):
         newer = SourceSnapshot.objects.create(
             source=self.snapshot.source, reference="opencoesione_progetti_20260831.zip", data_date=date(2026, 8, 31)
@@ -186,3 +227,53 @@ class FundingApiTests(ApiTestCase):
             {"theme_code": "01", "theme": "Ricerca e innovazione", "count": 2},
             {"theme_code": "03", "theme": "Competitività delle imprese", "count": 1},
         ])
+
+
+class StateAidApiTests(ApiTestCase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        rna_source = Source.objects.create(code="rna", name="RNA", kind=Source.Kind.OPEN_DATA)
+        snapshot = SourceSnapshot.objects.create(source=rna_source, reference="rna_aiuti_2026_10.zip", data_date=date(2026, 10, 1))
+        alfa = Company.objects.get(vat_number="03132170717")
+        gamma = Company.objects.get(vat_number="05866880726")
+        for cor, company, amount, granted in (
+            ("101", alfa, "1000.50", date(2021, 3, 1)),
+            ("102", alfa, "2500.00", date(2025, 6, 1)),
+            ("103", gamma, "500.00", date(2024, 1, 1)),
+            ("104", alfa, None, date(2026, 1, 1)),
+        ):
+            StateAid.objects.create(
+                cor=cor, company=company, aid_amount=Decimal(amount) if amount else None, granted_on=granted,
+                measure_title=f"Misura {cor}", granting_body="Regione Puglia", project_title=f"Progetto {cor}",
+                objectives="Ricerca, sviluppo e innovazione", procedures="De Minimis", instruments="Sovvenzione",
+                transparency_url=f"https://example.it/{cor}", snapshot=snapshot,
+            )
+
+    def test_company_aid(self):
+        data = self.client.get("/api/companies/03132170717").json()["aid"]
+        self.assertEqual(data["count"], 3)
+        self.assertEqual(data["total_amount"], 3500.5)
+        self.assertEqual(data["latest_date"], "2026-01-01")
+        self.assertEqual([a["cor"] for a in data["items"]], ["104", "102", "101"])
+        first = data["items"][1]
+        self.assertEqual(first["aid_amount"], 2500.0)
+        self.assertEqual(first["measure_title"], "Misura 102")
+        self.assertEqual(first["granting_body"], "Regione Puglia")
+        self.assertEqual(first["project_title"], "Progetto 102")
+        self.assertEqual(first["objectives"], "Ricerca, sviluppo e innovazione")
+        self.assertEqual(first["procedures"], "De Minimis")
+        self.assertEqual(first["instruments"], "Sovvenzione")
+        self.assertEqual(first["transparency_url"], "https://example.it/102")
+        self.assertEqual(first["granted_on"], "2025-06-01")
+        self.assertIsNone(data["items"][0]["aid_amount"])
+
+    def test_company_without_aid(self):
+        data = self.client.get("/api/companies/02462780731").json()["aid"]
+        self.assertEqual(data, {"count": 0, "total_amount": None, "latest_date": None, "items": []})
+
+    def test_stats_aid(self):
+        data = self.client.get("/api/stats").json()["aid"]
+        self.assertEqual(data["companies"], 2)
+        self.assertEqual(data["grants"], 4)
+        self.assertEqual(data["total_amount"], 4000.5)

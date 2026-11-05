@@ -41,6 +41,7 @@ const { t } = useI18n()
   --row-hover: #f3f7fd;
   --shadow: 0 1px 2px rgb(15 23 32 / 0.05);
   --radius: 6px;
+  --content-width: 1440px;
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
@@ -221,7 +222,7 @@ h3 {
 .app-main {
   flex: 1;
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--content-width);
   margin: 0 auto;
   padding: 28px 16px 56px;
 }
@@ -248,7 +249,7 @@ h3 {
 }
 
 .app-header__inner {
-  max-width: 1200px;
+  max-width: var(--content-width);
   margin: 0 auto;
   padding: 10px 16px;
   display: flex;
@@ -640,6 +641,65 @@ a.project-list__title:hover {
   font-size: 14px;
 }
 
+.aid-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.aid-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+
+.aid-list__item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.aid-list__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.aid-list__title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.aid-list__amount {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.aid-list__measure,
+.aid-list__objectives {
+  margin: 0;
+  font-size: 14px;
+}
+
+.aid-list__objectives {
+  color: var(--text-2);
+}
+
+.aid-list__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.aid-list__more {
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+
 .load-state {
   display: flex;
   align-items: center;
@@ -763,6 +823,29 @@ a.project-list__title:hover {
 
 .companies__filter select {
   max-width: 280px;
+}
+
+.companies__check,
+.companies__sort {
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.companies__check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-strong);
+}
+
+.companies__sort {
+  margin-left: auto;
+}
+
+.companies__table th.companies__num,
+.companies__table td.companies__num {
+  text-align: right;
 }
 
 .companies__table-card {

@@ -77,12 +77,17 @@ Findings from exploring the data:
 
 First import (2026-11-04, progetti 2026-08-31 + soggetti 2026-06-30): 37,936 projects, 117,442 company–project links, 99.8% of linked projects found.
 
-## RNA: Registro Nazionale Aiuti (enrichment)
+## RNA: Registro Nazionale degli Aiuti di Stato (state aid)
 
-- URL: https://www.incentivitalia.gov.it/rna/rna-open-data/aiuti
-- Monthly XML files (`OpenData_Aiuti_YYYY_MM`), updated weekly.
-- Licence: none named ("senza restrizioni di copyright"). Use for enrichment with attribution.
-- Fields: `DENOMINAZIONE_BENEFICIARIO`, `CODICE_FISCALE_BENEFICIARIO`, `DES_TIPO_BENEFICIARIO` (size), `REGIONE_BENEFICIARIO`, `SETTORE_ATTIVITA` (NACE), aid amounts, project title and description.
+- Listing: https://www.incentivitalia.gov.it/rna/rna-open-data/aiuti (paged, `?page=N`). Files: `https://www.incentivitalia.gov.it/open-data/aiuti/OpenData_Aiuti_YYYY_MM[_NNN].zip`, one per month from 2016-11. **Busy months are split into parts** of 500,000 records (`_002`, `_003`, `_004`); there were 142 files as of 2026-11.
+- Stored as `data/raw/rna/rna_aiuti_YYYY_MM[_NNN].zip`. **All raw files are kept** (decision 2026-11-05), about 3–4 GB in total.
+- Import: `python manage.py import_rna [--download] [--file PATH] [--force]` (code in `apps/companies/importers/rna.py`). `--download` reads the listing pages and fetches only missing files; files are imported in name order, one snapshot each, and skipped if already imported.
+- Licence: none named ("senza restrizioni di copyright"). Attribution: "Fonte: Registro Nazionale degli Aiuti di Stato".
+- Format: XML with namespace `http://www.rna.it/RNA_aiuto/schema`, 0.5–1.8 GB per file unzipped, so it is streamed from the zip. **It contains invalid control characters** (e.g. `\x02` in "COVID\x02 19"), which are stripped while reading. ISO dates, dot decimals, `CUP` "n.d." when missing.
+- One grant (`AIUTO`, unique `COR`) can have **several components**, each with procedure (e.g. De Minimis, Esenzione), objective, sector and instruments. Amounts (`ELEMENTO_DI_AIUTO`, `IMPORTO_NOMINALE`) are **summed across components**. Sector codes switch to NACE 2.1 from 2026.
+- Matching: only grants whose `CODICE_FISCALE_BENEFICIARIO` is one of our companies are stored (`StateAid`). About 18% of our companies appear in any single month.
+- **Size:** `DES_TIPO_BENEFICIARIO` is only "PMI" (→ `sme`) or "Grande impresa" (→ `large`), sometimes "Non classificata" (ignored). It is set from the most recent grant, and only when the company's size is unknown or was previously set by RNA, so more detailed sizes from other sources are never overwritten.
+- About 16,000 Puglia beneficiaries per month are not in our list, but RNA has no legal form (companies can't be told apart from sole traders), so they are not added.
 
 ## Company websites (enrichment)
 

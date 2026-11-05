@@ -11,6 +11,11 @@ export interface CompanySummary {
   size_class: string
 }
 
+export interface CompanyListItem extends CompanySummary {
+  beneficiary_projects: number
+  sole_beneficiary_funding: number | null
+}
+
 export interface Source {
   name: string
   url: string
@@ -57,6 +62,26 @@ export interface CompanyFunding {
   roles: Partial<Record<ProjectRole, number>>
 }
 
+export interface StateAidItem {
+  cor: string
+  granted_on: string | null
+  measure_title: string
+  granting_body: string
+  project_title: string
+  objectives: string
+  procedures: string
+  instruments: string
+  aid_amount: number | null
+  transparency_url: string
+}
+
+export interface CompanyAid {
+  count: number
+  total_amount: number | null
+  latest_date: string | null
+  items: StateAidItem[]
+}
+
 export interface CompanyDetail extends CompanySummary {
   tax_code: string
   legal_form_code: string
@@ -75,6 +100,7 @@ export interface CompanyDetail extends CompanySummary {
   funding: CompanyFunding
   projects: FundedProject[]
   projects_total: number
+  aid: CompanyAid
 }
 
 export interface Page<T> {
@@ -95,12 +121,23 @@ export interface Stats {
     sole_beneficiary_funding: number
     by_theme: { theme_code: string; theme: string; count: number }[]
   }
+  aid: {
+    companies: number
+    grants: number
+    total_amount: number
+  }
 }
+
+export type CompanySort = 'name' | 'funding' | 'projects'
 
 export interface CompanyQuery {
   search?: string
   province?: string
   section?: string
+  division?: string
+  theme?: string
+  funded?: boolean
+  sort?: CompanySort
   page?: number
   page_size?: number
 }
@@ -134,6 +171,6 @@ export interface Health {
 export const api = {
   health: () => get<Health>('/health'),
   stats: () => get<Stats>('/stats'),
-  companies: (params: CompanyQuery = {}) => get<Page<CompanySummary>>(`/companies${buildQuery(params)}`),
+  companies: (params: CompanyQuery = {}) => get<Page<CompanyListItem>>(`/companies${buildQuery(params)}`),
   company: (vat: string) => get<CompanyDetail>(`/companies/${encodeURIComponent(vat)}`),
 }

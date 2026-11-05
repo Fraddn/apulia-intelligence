@@ -54,6 +54,7 @@ Coverage happens in two stages:
 | `Source` | A data provider (OpenCoesione, RNA, websites, Jev, manual) with licence and attribution. |
 | `SourceSnapshot` | One retrieval from a source: file name or URL, checksum, date of the data, stats. |
 | `Project` | A funded project from OpenCoesione: title, description, theme, status, public/EU funding, payments, dates, number of beneficiaries, link |
+| `StateAid` | One grant from the national state-aid register (RNA): measure, granting body, project, date, procedures, objectives, instruments, aid amount (summed across components), size stated, transparency link |
 | `ProjectRole` | Company ↔ project with role: beneficiary, implementer, contractor, programmer |
 | `FieldProvenance` | For a company field: raw value, snapshot, assurance (`official`, `company`, `inferred`, `derived`, `manual`) and optional confidence 0–1. |
 
@@ -68,7 +69,7 @@ Helpers:
 
 | Endpoint | Returns |
 |---|---|
-| `GET /api/companies?search=&province=&section=&ateco=&page=&page_size=` | `{items, count}`, 25 per page (max 100), sorted by name |
+| `GET /api/companies?search=&province=&section=&division=&theme=&funded=&ateco=&sort=&page=&page_size=` | `{items, count}`, 25 per page (max 100). `division` is the 2-digit ATECO division; `theme` and `funded` match companies that were **beneficiaries** of projects; `sort` is `name` (default), `funding` (sole-beneficiary funding, empty last) or `projects` (beneficiary project count). Items include `beneficiary_projects` and `sole_beneficiary_funding` |
 | `GET /api/companies/{vat}` | All company fields, `provenance` (latest entry per field with source, assurance, confidence), `funding` (beneficiary/sole/shared project counts, sole-beneficiary funding, counts per role) and `projects` (up to 50, beneficiary roles first, newest first) with `projects_total` |
 | `GET /api/stats` | Totals, counts by province and ATECO section, sources with the company-data date, and `funding` (beneficiary companies and projects, sole-beneficiary funding, projects by theme) |
 

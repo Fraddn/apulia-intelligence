@@ -4,7 +4,7 @@
     <LoadState :loading="loading" :error="failed" @retry="load">
       <template v-if="stats">
         <div class="dashboard__tiles">
-          <StatTile hero :label="t('dashboard.totalCompanies')" :value="n(stats.total)" :hint="t('dashboard.heroHint', { source: sourceNames, date: dataDate })" />
+          <StatTile hero :label="t('dashboard.totalCompanies')" :value="n(stats.total)" :hint="t('dashboard.heroHint', { source: stats.sources[0]?.name ?? '', date: dataDate })" />
           <StatTile
             :label="t('dashboard.withAteco')"
             :value="pct(stats.with_ateco, stats.total)"
@@ -36,6 +36,18 @@
             :label="t('dashboard.soleFunding')"
             :value="formatCurrency(stats.funding.sole_beneficiary_funding, locale, true)"
             :hint="t('dashboard.soleFundingHint')"
+          />
+          <StatTile
+            class="dashboard__tile--wide"
+            :label="t('dashboard.aidCompanies')"
+            :value="n(stats.aid.companies)"
+            :hint="t('dashboard.aidCompaniesHint', { grants: n(stats.aid.grants) })"
+          />
+          <StatTile
+            class="dashboard__tile--wide"
+            :label="t('dashboard.aidTotal')"
+            :value="formatCurrency(stats.aid.total_amount, locale, true)"
+            :hint="t('dashboard.aidTotalHint')"
           />
         </div>
 
