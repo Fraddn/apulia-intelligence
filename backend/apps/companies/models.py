@@ -274,3 +274,21 @@ class WebsitePage(models.Model):
 
     def __str__(self):
         return self.url
+
+
+class WebsiteDiscovery(models.Model):
+    """Attempt to find a company's website by guessing domains from its name."""
+
+    class Status(models.TextChoices):
+        FOUND = "found", "Found"
+        NOT_FOUND = "not_found", "Not found"
+        NO_CANDIDATES = "no_candidates", "Name too short to guess"
+
+    company = models.OneToOneField(Company, on_delete=models.CASCADE, related_name="website_discovery")
+    status = models.CharField(max_length=15, choices=Status)
+    found_url = models.CharField(max_length=500, blank=True)
+    tried = models.JSONField(default=list, blank=True)
+    attempted_at = models.DateTimeField()
+
+    def __str__(self):
+        return f"{self.company.vat_number}: {self.status}"
