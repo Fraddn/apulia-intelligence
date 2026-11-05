@@ -33,6 +33,13 @@ class CandidateTests(SimpleTestCase):
         self.assertEqual(discovery.candidate_domains("AB SRL"), [])
         self.assertEqual(discovery.candidate_domains("S.R.L."), [])
 
+    def test_long_names_skip_labels_over_dns_limit(self):
+        name = "CONSORZIO PRODUTTORI AGRICOLI ASSOCIATI DELLA MURGIA BARESE TERRITORIO E SVILUPPO SRL"
+        domains = discovery.candidate_domains(name)
+        self.assertIn("consorzio-produttori.it", domains)
+        self.assertTrue(all(len(d.split(".")[0]) <= 63 for d in domains))
+        self.assertFalse(discovery._resolves("a" * 80 + ".it"))
+
 
 class ProbeTests(SimpleTestCase):
     def web(self, pages, robots="User-agent: *\nAllow: /"):

@@ -26,5 +26,6 @@
 | 2026-11-05 | Town names from the ISTAT municipality code, not from postcodes; skip when the postcode contradicts it | Exact official mapping; postcodes have no open list and are ambiguous |
 | 2026-11-05 | Website address applied only as a whole unit | A real case mixed an official Brindisi address with a Lecce town from the website |
 | 2026-11-05 | Website discovery also runs on demand when a company page is opened (25 s limit, max 2 concurrent per process); gunicorn `--timeout 90 --threads 4` | User request; fills profiles people actually look at without a 30-hour batch |
+| 2026-11-05 | Dependabot skips TypeScript major versions | typescript-eslint supports TypeScript < 6.1 only; the TS 7 bump breaks `npm ci`. Remove the ignore once typescript-eslint supports it |
 | 2026-11-04 | All CSS in one global `<style>` in App.vue, enforced by ESLint | User's choice: no scoped styles, no CSS files |
 | 2026-11-04 | Companies only: legal forms 1.2, 1.3, 1.4, 1.5, 1.9 | Sole traders' names are personal data (GDPR); associations, foundations and anonymous records are not companies |
