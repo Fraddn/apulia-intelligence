@@ -23,7 +23,10 @@
         <div class="company__groups">
           <article v-for="group in groups" :key="group.title" class="card">
             <h2 class="company__group-title">{{ group.title }}</h2>
-            <WebsiteStatus v-if="group.key === 'location'" :check="company.website_check" />
+            <template v-if="group.key === 'location'">
+              <DiscoveryStatus :searching="discovering" :discovery="discovery" />
+              <WebsiteStatus :check="company.website_check" />
+            </template>
             <dl class="company__fields">
               <div v-for="row in group.rows" :key="row.field" class="company__row">
                 <dt class="company__term">{{ t(`company.fields.${row.field}`) }}</dt>
@@ -110,12 +113,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ApiError, api, type CompanyDetail, type Provenance, type Source } from '../api'
+import { ApiError, api, type CompanyDetail, type Discovery, type Provenance, type Source } from '../api'
 import AidList from '../components/AidList.vue'
 import AssuranceBadge from '../components/AssuranceBadge.vue'
 import LoadState from '../components/LoadState.vue'
 import ProjectList from '../components/ProjectList.vue'
 import StatTile from '../components/StatTile.vue'
+import DiscoveryStatus from '../components/DiscoveryStatus.vue'
 import WebsiteStatus from '../components/WebsiteStatus.vue'
 import { formatCurrency, formatDate, formatNumber } from '../format'
 
@@ -135,12 +139,31 @@ const loading = ref(true)
 const failed = ref(false)
 const notFound = ref(false)
 
+const discovering = ref(false)
+const discovery = ref<Discovery | null>(null)
+
+async function discoverWebsite(vat: string) {
+  discovering.value = true
+  try {
+    const result = await api.discover(vat)
+    if (props.vat !== vat) return
+    discovery.value = result.discovery
+    company.value = result.company
+  } catch {
+    discovery.value = null
+  } finally {
+    discovering.value = false
+  }
+}
+
 async function load() {
   loading.value = true
   failed.value = false
   notFound.value = false
+  discovery.value = null
   try {
     company.value = await api.company(props.vat)
+    if (!company.value.website_check) discoverWebsite(props.vat)
   } catch (error) {
     failed.value = true
     notFound.value = error instanceof ApiError && error.status === 404
@@ -191,6 +214,7 @@ const groups = computed(() => {
         makeRow('province', c.province ? t(`provinces.${c.province}`) : '', {
           note: derivedProvince ? t('company.derivedProvince') : undefined,
         }),
+        makeRow('city', c.city),
         makeRow('municipality_code', c.municipality_code),
         makeRow('address', c.address),
         makeRow('postcode', c.postcode),

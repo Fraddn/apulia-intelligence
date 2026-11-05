@@ -2,7 +2,7 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.companies.importers import opencoesione
+from apps.companies.importers import istat, opencoesione
 
 
 class Command(BaseCommand):
@@ -49,3 +49,6 @@ class Command(BaseCommand):
             if stats[group]:
                 details = ", ".join(f"{k}: {v:,}" for k, v in sorted(stats[group].items()))
                 self.stdout.write(f"  {group.replace('_', ' ')}: {details}")
+        cities = istat.fill_cities()
+        if cities:
+            self.stdout.write(f"  cities filled from ISTAT codes: {cities.get('filled', 0):,}")

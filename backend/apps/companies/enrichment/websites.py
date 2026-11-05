@@ -236,10 +236,22 @@ def _extract(pages) -> dict:
     return found
 
 
+ADDRESS_FIELDS = ("address", "postcode", "city")
+
+
 def _apply(company: Company, found: dict):
     source, _ = Source.objects.update_or_create(code=SOURCE["code"], defaults=SOURCE)
-    owners = _owners(company, found)
+    owners = _owners(company, [*found, *ADDRESS_FIELDS])
     snapshots, changed = {}, []
+    address_taken = any(
+        getattr(company, field) and owners.get(field) != SOURCE["code"] for field in ADDRESS_FIELDS
+    )
+    if address_taken:
+        for field in ADDRESS_FIELDS:
+            found.pop(field, None)
+            if getattr(company, field) and owners.get(field) == SOURCE["code"]:
+                setattr(company, field, "")
+                changed.append(field)
     for field, (value, url) in found.items():
         current = getattr(company, field)
         if current and owners.get(field) != SOURCE["code"]:

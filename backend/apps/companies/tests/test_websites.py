@@ -197,6 +197,30 @@ class FetchTests(TestCase):
         self.assertEqual(self.company.address, "Via Ufficiale 1")
         self.assertEqual(self.company.email, "info@vallefiorita.it")
 
+    def test_address_is_kept_as_one_unit(self):
+        official = SourceSnapshot.objects.create(source=Source.objects.create(code="opencoesione", name="OC", kind="open_data"), reference="f.zip")
+        self.company.address, self.company.postcode = "BRINDISI", "72100"
+        self.company.save()
+        self.company.record_provenance("address", "BRINDISI", official, Assurance.OFFICIAL)
+        self.company.record_provenance("postcode", "72100", official, Assurance.OFFICIAL)
+        lecce = HOME.replace("Via Appia 120, 72100 Brindisi (BR)", "Via Leuca 5, 73100 Lecce")
+        self.run_fetch(FakeWeb({"https://vallefiorita.it/": lecce, "https://vallefiorita.it/contatti/": CONTACT}))
+        self.company.refresh_from_db()
+        self.assertEqual((self.company.address, self.company.postcode, self.company.city), ("BRINDISI", "72100", ""))
+        self.assertEqual(self.company.email, "info@vallefiorita.it")
+
+    def test_mixed_address_from_earlier_fetch_is_repaired(self):
+        official = SourceSnapshot.objects.create(source=Source.objects.create(code="opencoesione", name="OC", kind="open_data"), reference="f.zip")
+        website = SourceSnapshot.objects.create(source=Source.objects.create(code="company_website", name="W", kind="website"), reference="https://vallefiorita.it/")
+        self.company.address, self.company.postcode, self.company.city = "BRINDISI", "72100", "Lecce"
+        self.company.save()
+        self.company.record_provenance("address", "BRINDISI", official, Assurance.OFFICIAL)
+        self.company.record_provenance("city", "Lecce", website, Assurance.COMPANY)
+        lecce = HOME.replace("Via Appia 120, 72100 Brindisi (BR)", "Via Leuca 5, 73100 Lecce")
+        self.run_fetch(FakeWeb({"https://vallefiorita.it/": lecce}), force=True)
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.city, "")
+
     def test_fetches_at_most_five_pages(self):
         links = "".join(f'<a href="/contatti-{i}">Contatti {i}</a>' for i in range(10))
         pages = {"https://vallefiorita.it/": f"<html><body>{links} P.IVA {VAT}</body></html>"}

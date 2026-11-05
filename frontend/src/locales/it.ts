@@ -83,6 +83,7 @@ const it: typeof en = {
     columns: {
       name: 'Azienda',
       vat: 'Partita IVA',
+      location: 'Località',
       province: 'Provincia',
       sector: 'Settore',
       size: 'Dimensione',
@@ -114,7 +115,7 @@ const it: typeof en = {
       ateco_version: 'Versione ATECO',
       province: 'Provincia',
       municipality_code: 'Comune (codice ISTAT)',
-      city: 'Città',
+      city: 'Comune',
       address: 'Indirizzo',
       postcode: 'CAP',
       website: 'Sito web',
@@ -184,6 +185,13 @@ const it: typeof en = {
     unreachable: 'Il sito non è raggiungibile.',
     blocked: 'Il sito non consente la lettura automatica (robots.txt).',
     open: 'Apri il sito',
+  },
+  discovery: {
+    searching: 'Ricerca del sito aziendale in corso…',
+    notFound: 'Non è stato trovato automaticamente un sito che riporti la partita IVA di questa azienda.',
+    noCandidates: 'La ragione sociale è troppo breve per cercare il sito automaticamente.',
+    busy: 'La ricerca dei siti è occupata al momento. Riapri questa pagina più tardi.',
+    timeout: 'La ricerca del sito ha richiesto troppo tempo. Verrà ritentata alla prossima visita.',
   },
   assurance: {
     official: 'Ufficiale',

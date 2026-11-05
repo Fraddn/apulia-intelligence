@@ -1,5 +1,7 @@
 import re
 import socket
+import threading
+import time
 import unicodedata
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -7,13 +9,19 @@ from datetime import date, timedelta
 from django.db.models import Q
 from django.utils import timezone
 
-from ..models import Assurance, Company, Source, SourceSnapshot, WebsiteDiscovery
+from ..models import Assurance, Company, Source, SourceSnapshot, WebsiteCheck, WebsiteDiscovery
 from . import websites
 
 TLDS = ("it", "com", "eu")
 MAX_CANDIDATES = 12
+MAX_LABEL = 63
 CONFIDENCE = 0.95
 RETRY_DAYS = 180
+ON_DEMAND_DEADLINE = 25
+TIMEOUT = "timeout"
+BUSY = "busy"
+
+_slots = threading.BoundedSemaphore(2)
 
 SOURCE = {
     "code": "website_discovery",
@@ -50,7 +58,7 @@ def candidate_domains(name: str) -> list[str]:
     if not tokens:
         return []
     stems = ["".join(tokens), "".join(tokens[:2]), "-".join(tokens[:2]), tokens[0] if len(tokens[0]) >= 5 else ""]
-    domains = [f"{stem}.{tld}" for stem in dict.fromkeys(stems) if len(stem) >= 4 for tld in TLDS]
+    domains = [f"{stem}.{tld}" for stem in dict.fromkeys(stems) if 4 <= len(stem) <= MAX_LABEL for tld in TLDS]
     return list(dict.fromkeys(domains))[:MAX_CANDIDATES]
 
 
@@ -58,7 +66,7 @@ def _resolves(domain: str) -> bool:
     try:
         socket.getaddrinfo(domain, 443)
         return True
-    except OSError:
+    except (OSError, UnicodeError):
         return False
 
 
@@ -77,13 +85,16 @@ def _shows_vat(url: str, html: str, vat: str, robots) -> bool:
     return False
 
 
-def probe(name: str, vat: str) -> ProbeResult:
+def probe(name: str, vat: str, deadline: float | None = None) -> ProbeResult:
     """Network-only: guess domains for a company and return the first one showing its VAT number."""
     domains = candidate_domains(name)
     if not domains:
         return ProbeResult(WebsiteDiscovery.Status.NO_CANDIDATES)
+    started = time.monotonic()
     for domain in (d for d in domains if _resolves(d)):
         for url in (f"https://www.{domain}/", f"https://{domain}/"):
+            if deadline is not None and time.monotonic() - started > deadline:
+                return ProbeResult(TIMEOUT, "", domains)
             robots = websites._robots(url)
             if not robots.can_fetch(websites.ROBOTS_AGENT, url):
                 continue
@@ -119,3 +130,26 @@ def pending(force: bool = False):
         cutoff = timezone.now() - timedelta(days=RETRY_DAYS)
         companies = companies.filter(Q(website_discovery__isnull=True) | Q(website_discovery__attempted_at__lt=cutoff))
     return companies.order_by("id")
+
+
+def discover_now(company: Company, deadline: float = ON_DEMAND_DEADLINE):
+    """On-demand discovery for one company. Returns a WebsiteDiscovery, a transient status dict, or None."""
+    if company.website:
+        if not WebsiteCheck.objects.filter(company=company).exists():
+            websites.fetch(company)
+        return None
+    record = WebsiteDiscovery.objects.filter(company=company).first()
+    if record and timezone.now() - record.attempted_at < timedelta(days=RETRY_DAYS):
+        return record
+    if not _slots.acquire(blocking=False):
+        return {"status": BUSY}
+    try:
+        result = probe(company.name, company.vat_number, deadline=deadline)
+    finally:
+        _slots.release()
+    if result.status == TIMEOUT:
+        return {"status": TIMEOUT}
+    record = save(company, result)
+    if result.status == WebsiteDiscovery.Status.FOUND:
+        websites.fetch(company, force=True)
+    return record

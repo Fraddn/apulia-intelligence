@@ -27,4 +27,10 @@ describe('api', () => {
     await expect(api.company('00000000000')).rejects.toBeInstanceOf(ApiError)
   })
 
+  it('starts website discovery with POST', async () => {
+    const fetchMock = mockFetch(200, { discovery: null, company: {} })
+    await api.discover('01775410747')
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/companies/01775410747/discover')
+    expect(fetchMock.mock.calls[0][1].method).toBe('POST')
+  })
 })

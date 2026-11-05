@@ -292,3 +292,19 @@ class WebsiteDiscovery(models.Model):
 
     def __str__(self):
         return f"{self.company.vat_number}: {self.status}"
+
+
+class Municipality(models.Model):
+    """Italian municipality from the official ISTAT list."""
+
+    code = models.CharField(max_length=6, unique=True)
+    name = models.CharField(max_length=200)
+    province = models.CharField(max_length=2, blank=True)
+    region_code = models.CharField(max_length=2, blank=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name_plural = "municipalities"
+
+    def __str__(self):
+        return f"{self.name} ({self.province})"

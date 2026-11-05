@@ -7,7 +7,7 @@ import CompaniesView from '../views/CompaniesView.vue'
 
 afterEach(() => vi.unstubAllGlobals())
 
-const page = {
+const page: { count: number; items: Record<string, unknown>[] } = {
   count: 1,
   items: [
     {
@@ -74,6 +74,17 @@ describe('CompaniesView filters', () => {
     await wrapper.find('select[name="sort"]').setValue('projects')
     await flushPromises()
     expect(router.currentRoute.value.query.sort).toBe('projects')
+  })
+
+  it('shows the town with the province code, or the province when the town is unknown', async () => {
+    page.items = [
+      { ...page.items[0], city: 'Brindisi', province: 'BR' },
+      { ...page.items[0], vat_number: '02462780731', city: '', province: 'TA' },
+    ]
+    const { wrapper } = await render('/companies')
+    const cells = wrapper.findAll('tbody tr').map((row) => row.findAll('td')[2].text())
+    expect(cells).toEqual(['Brindisi (BR)', 'Taranto'])
+    expect(wrapper.findAll('thead th')[2].text()).toBe('Location')
   })
 
   it('shows funding columns', async () => {

@@ -80,6 +80,7 @@ export default {
     columns: {
       name: 'Company',
       vat: 'VAT number',
+      location: 'Location',
       province: 'Province',
       sector: 'Sector',
       size: 'Size',
@@ -111,7 +112,7 @@ export default {
       ateco_version: 'ATECO version',
       province: 'Province',
       municipality_code: 'Municipality (ISTAT code)',
-      city: 'City',
+      city: 'Town',
       address: 'Address',
       postcode: 'Postcode',
       website: 'Website',
@@ -181,6 +182,13 @@ export default {
     unreachable: 'The website could not be reached.',
     blocked: 'The website does not allow automated reading (robots.txt).',
     open: 'Open website',
+  },
+  discovery: {
+    searching: 'Looking for the company website…',
+    notFound: 'No website showing this company’s VAT number was found automatically.',
+    noCandidates: 'The company name is too short to look for its website automatically.',
+    busy: 'The website search is busy right now. Open this page again later.',
+    timeout: 'The website search took too long. It will be tried again next time.',
   },
   assurance: {
     official: 'Official',

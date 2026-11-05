@@ -28,7 +28,12 @@ class Command(BaseCommand):
             futures = {pool.submit(discovery.probe, name, vat): company_id for company_id, name, vat in companies}
             for done, future in enumerate(as_completed(futures), start=1):
                 company = Company.objects.get(id=futures[future])
-                result = future.result()
+                try:
+                    result = future.result()
+                except Exception as error:
+                    outcome["error"] += 1
+                    self.stderr.write(f"  [{done:,}/{len(companies):,}] error {company.name[:50]}: {error}")
+                    continue
                 discovery.save(company, result)
                 outcome[result.status] += 1
                 if result.status == WebsiteDiscovery.Status.FOUND:

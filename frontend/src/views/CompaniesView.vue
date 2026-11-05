@@ -66,7 +66,7 @@
               <tr>
                 <th scope="col">{{ t('companies.columns.name') }}</th>
                 <th scope="col">{{ t('companies.columns.vat') }}</th>
-                <th scope="col">{{ t('companies.columns.province') }}</th>
+                <th scope="col">{{ t('companies.columns.location') }}</th>
                 <th scope="col">{{ t('companies.columns.sector') }}</th>
                 <th scope="col">{{ t('companies.columns.size') }}</th>
                 <th scope="col" class="companies__num">{{ t('companies.columns.projects') }}</th>
@@ -79,7 +79,7 @@
                   <RouterLink :to="{ name: 'company', params: { vat: company.vat_number } }">{{ company.name }}</RouterLink>
                 </td>
                 <td class="mono">{{ company.vat_number }}</td>
-                <td>{{ company.province ? t(`provinces.${company.province}`) : '–' }}</td>
+                <td>{{ location(company) }}</td>
                 <td>
                   <span v-if="company.ateco_section" class="companies__sector" :title="t(`sections.${company.ateco_section}`)">
                     <span class="companies__section-letter">{{ company.ateco_section }}</span>
@@ -224,4 +224,9 @@ async function load() {
 watch(() => route.query, load, { immediate: true })
 
 const n = (value: number) => formatNumber(value, locale.value)
+
+function location(company: CompanyListItem) {
+  if (company.city) return company.province ? `${company.city} (${company.province})` : company.city
+  return company.province ? t(`provinces.${company.province}`) : '–'
+}
 </script>

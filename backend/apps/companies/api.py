@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404
 from ninja import Field, FilterSchema, Query, Router, Schema
 from ninja.pagination import PageNumberPagination, paginate
 
+from .enrichment import discovery
 from .models import Company, FieldProvenance, Project, ProjectRole, Source, StateAid
 
 router = Router(tags=["companies"])
@@ -129,6 +130,17 @@ class CompanyDetailOut(CompanyListOut):
     website_check: WebsiteCheckOut | None
 
 
+class DiscoveryOut(Schema):
+    status: str
+    found_url: str = ""
+    attempted_at: datetime | None = None
+
+
+class DiscoverResultOut(Schema):
+    discovery: DiscoveryOut | None
+    company: CompanyDetailOut
+
+
 class CompanyFilters(FilterSchema):
     search: str | None = None
     province: ProvinceCode | None = None
@@ -236,6 +248,18 @@ def list_companies(request, filters: Query[CompanyFilters], sort: SortOption = "
 @router.get("/companies/{vat_number}", response=CompanyDetailOut)
 def get_company(request, vat_number: str):
     return _company_detail(get_object_or_404(Company, vat_number=vat_number))
+
+
+@router.post("/companies/{vat_number}/discover", response=DiscoverResultOut)
+def discover_company_website(request, vat_number: str):
+    company = get_object_or_404(Company, vat_number=vat_number)
+    outcome = discovery.discover_now(company)
+    company = Company.objects.get(pk=company.pk)
+    if isinstance(outcome, dict) or outcome is None:
+        result = outcome
+    else:
+        result = {"status": outcome.status, "found_url": outcome.found_url, "attempted_at": outcome.attempted_at}
+    return {"discovery": result, "company": _company_detail(company)}
 
 
 def _company_detail(company):

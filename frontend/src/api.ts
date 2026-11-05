@@ -116,6 +116,17 @@ export interface CompanyDetail extends CompanySummary {
   website_check: WebsiteCheck | null
 }
 
+export interface Discovery {
+  status: 'found' | 'not_found' | 'no_candidates' | 'busy' | 'timeout'
+  found_url: string
+  attempted_at: string | null
+}
+
+export interface DiscoveryResult {
+  discovery: Discovery | null
+  company: CompanyDetail
+}
+
 export interface Page<T> {
   items: T[]
   count: number
@@ -188,4 +199,5 @@ export const api = {
   stats: () => get<Stats>('/stats'),
   companies: (params: CompanyQuery = {}) => get<Page<CompanyListItem>>(`/companies${buildQuery(params)}`),
   company: (vat: string) => get<CompanyDetail>(`/companies/${encodeURIComponent(vat)}`),
+  discover: (vat: string) => request<DiscoveryResult>(`/companies/${encodeURIComponent(vat)}/discover`, 'POST'),
 }

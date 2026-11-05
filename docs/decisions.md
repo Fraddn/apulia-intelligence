@@ -23,5 +23,8 @@
 | 2026-11-05 | **Removed** the OpenStreetMap lookup; focus on company websites for address and contacts | Only ~7% matches even in the best sectors, wrong matches when loosened, unreliable service |
 | 2026-11-05 | Websites entered manually (admin or CSV), then read and verified by VAT number | No usable free search API (Google closed, Bing retired, Brave needs a card and forbids storing results) |
 | 2026-11-05 | Automatic website discovery by guessing domains from the name, kept only if the site shows the company's VAT number | Free, no API key; ~16–18% found with no wrong matches |
+| 2026-11-05 | Town names from the ISTAT municipality code, not from postcodes; skip when the postcode contradicts it | Exact official mapping; postcodes have no open list and are ambiguous |
+| 2026-11-05 | Website address applied only as a whole unit | A real case mixed an official Brindisi address with a Lecce town from the website |
+| 2026-11-05 | Website discovery also runs on demand when a company page is opened (25 s limit, max 2 concurrent per process); gunicorn `--timeout 90 --threads 4` | User request; fills profiles people actually look at without a 30-hour batch |
 | 2026-11-04 | All CSS in one global `<style>` in App.vue, enforced by ESLint | User's choice: no scoped styles, no CSS files |
 | 2026-11-04 | Companies only: legal forms 1.2, 1.3, 1.4, 1.5, 1.9 | Sole traders' names are personal data (GDPR); associations, foundations and anonymous records are not companies |

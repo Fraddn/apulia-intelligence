@@ -59,6 +59,7 @@ Coverage happens in two stages:
 | `WebsiteCheck` | Latest reading of a company's website: URL, status (verified / VAT not found / unreachable / blocked / no website), pages, time |
 | `WebsiteDiscovery` | Attempt to find a company's website by guessing domains: outcome, URL found, domains tried, time |
 | `WebsitePage` | Text of each page read from the company's website (for classification) |
+| `Municipality` | Official ISTAT list of municipalities: code, name, province, region |
 | `FieldProvenance` | For a company field: raw value, snapshot, assurance (`official`, `company`, `inferred`, `derived`, `manual`) and optional confidence 0–1. |
 
 - `Company.record_provenance(field, raw_value, snapshot, assurance, confidence)` adds a row, or skips it if the same value from the same snapshot already exists.
@@ -74,6 +75,7 @@ Helpers:
 |---|---|
 | `GET /api/companies?search=&province=&section=&division=&theme=&funded=&ateco=&sort=&page=&page_size=` | `{items, count}`, 25 per page (max 100). `division` is the 2-digit ATECO division; `theme` and `funded` match companies that were **beneficiaries** of projects; `sort` is `name` (default), `funding` (sole-beneficiary funding, empty last) or `projects` (beneficiary project count). Items include `beneficiary_projects` and `sole_beneficiary_funding` |
 | `GET /api/companies/{vat}` | All company fields, `provenance` (latest entry per field with source, assurance, confidence), `funding` (beneficiary/sole/shared project counts, sole-beneficiary funding, counts per role) and `projects` (up to 50, beneficiary roles first, newest first) with `projects_total` |
+| `POST /api/companies/{vat}/discover` | On-demand website discovery and contact reading for one company; returns `{discovery, company}` |
 | `GET /api/stats` | Totals, counts by province and ATECO section, sources with the company-data date, and `funding` (beneficiary companies and projects, sole-beneficiary funding, projects by theme) |
 
 ## Frontend
