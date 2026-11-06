@@ -12,16 +12,16 @@
           <span v-else class="muted">{{ t('common.notAvailable') }}</span>
         </span>
       </div>
-      <div class="project-list__meta">
+      <div class="meta-line">
         <span class="badge" :class="{ 'badge--official': project.role === 'beneficiary' }">
           {{ t(`funding.roles.${project.role}`) }}
         </span>
-        <span v-if="project.role === 'beneficiary'" class="chip">
+        <span v-if="project.role === 'beneficiary'">
           {{ project.beneficiaries_count > 1 ? t('funding.sharedBy', { count: project.beneficiaries_count }) : t('funding.soleBeneficiary') }}
         </span>
-        <span v-if="project.theme_code || project.theme" class="chip">{{ themeLabel(project) }}</span>
-        <span class="chip">{{ t(`funding.statuses.${project.status}`) }}</span>
-        <span v-if="project.start_date" class="muted">
+        <span v-if="project.theme_code || project.theme">{{ themeLabel(project) }}</span>
+        <span>{{ t(`funding.statuses.${project.status}`) }}</span>
+        <span v-if="project.start_date">
           {{ t('funding.period', { start: formatDate(project.start_date, locale), end: formatDate(project.actual_end_date ?? project.expected_end_date, locale) }) }}
         </span>
       </div>

@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const MIN_FONT_SIZE = 14
-const css = readFileSync(resolve(process.cwd(), 'src/App.vue'), 'utf8')
+const css = readFileSync(resolve(process.cwd(), 'src/main.css'), 'utf8')
 
 describe('typography', () => {
   it(`never uses a font size below ${MIN_FONT_SIZE}px`, () => {

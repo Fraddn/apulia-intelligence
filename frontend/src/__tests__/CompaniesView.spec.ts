@@ -98,4 +98,39 @@ describe('CompaniesView filters', () => {
     expect(row.text()).toContain('€100,000')
     expect(row.findAll('td').map((td) => td.text())).toContain('2')
   })
+
+  it('shows page numbers around the current page with the first and last page', async () => {
+    page.count = 1000
+    const { wrapper } = await render('/companies?page=6')
+    const items = wrapper.findAll('.companies__pages > *').map((el) => el.text())
+    expect(items).toEqual(['← Previous', '6 / 40', '1', '…', '4', '5', '6', '7', '8', '…', '40', 'Next →'])
+    expect(wrapper.find('[aria-current="page"]').text()).toBe('6')
+  })
+
+  it('changes rows per page and goes back to the first page', async () => {
+    page.count = 1000
+    const { wrapper, router, fetchMock } = await render('/companies?page=3&province=BA')
+    await wrapper.find('select[name="page_size"]').setValue('100')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ province: 'BA', page_size: '100' })
+    expect(lastRequest(fetchMock).get('page_size')).toBe('100')
+    const items = wrapper.findAll('.companies__page').map((el) => el.text())
+    expect(items).toEqual(['1', '2', '3', '10'])
+  })
+
+  it('counts active filters on the phone filter toggle and opens the panel', async () => {
+    const { wrapper } = await render('/companies?province=BA&size=sme&search=alfa')
+    const toggle = wrapper.find('.companies__filters-toggle')
+    expect(toggle.text()).toBe('Filters (2)')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    await toggle.trigger('click')
+    expect(wrapper.find('.companies__filters').classes()).toContain('companies__filters--open')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+  })
+
+  it('shows a compact page status for phones', async () => {
+    page.count = 1000
+    const { wrapper } = await render('/companies?page=6')
+    expect(wrapper.find('.companies__page-status').text()).toBe('6 / 40')
+  })
 })

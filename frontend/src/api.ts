@@ -138,6 +138,7 @@ export interface Stats {
   size_known: number
   by_province: { province: Province; count: number }[]
   by_section: { section: string; count: number }[]
+  by_size: { size: string; count: number }[]
   sources: (Source & { data_date: string | null })[]
   funding: {
     beneficiary_companies: number
@@ -199,7 +200,7 @@ export interface Health {
 
 export const api = {
   health: () => get<Health>('/health'),
-  stats: () => get<Stats>('/stats'),
+  stats: (scope: { province?: string; section?: string } = {}) => get<Stats>(`/stats${buildQuery(scope)}`),
   companies: (params: CompanyQuery = {}) => get<Page<CompanyListItem>>(`/companies${buildQuery(params)}`),
   company: (vat: string) => get<CompanyDetail>(`/companies/${encodeURIComponent(vat)}`),
   discover: (vat: string) => request<DiscoveryResult>(`/companies/${encodeURIComponent(vat)}/discover`, 'POST'),

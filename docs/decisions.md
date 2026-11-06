@@ -28,5 +28,7 @@
 | 2026-11-05 | Website discovery also runs on demand when a company page is opened (25 s limit, max 2 concurrent per process); gunicorn `--timeout 90 --threads 4` | User request; fills profiles people actually look at without a 30-hour batch |
 | 2026-11-05 | Dependabot skips TypeScript major versions | typescript-eslint supports TypeScript < 6.1 only; the TS 7 bump breaks `npm ci`. Remove the ignore once typescript-eslint supports it |
 | 2026-11-06 | Website discovery checks guesses in parallel with a port check and short timeouts; only public IPs count | Was ~35 s per company and hit 127.0.0.1 via the router's catch-all DNS; now 2–4 s typical. Hit rate stays ~12%, the limit of name guessing |
-| 2026-11-04 | All CSS in one global `<style>` in App.vue, enforced by ESLint | User's choice: no scoped styles, no CSS files |
+| 2026-11-06 | Company page names the most common source once per card ("source unless noted"); only fields from another source, with a confidence below 100% or with a note get their own source line; original values move to a hover tooltip | Every field repeated its source, which doubled the page; the source of each value stays visible |
+| 2026-11-06 | All CSS moved to `src/main.css`; no `<style>` blocks in any `.vue` file (ESLint) | User's choice: styles in a CSS file, not in a Vue file |
+| 2026-11-04 | All CSS in one global `<style>` in App.vue (superseded 2026-11-06), enforced by ESLint | User's choice: no scoped styles, no CSS files |
 | 2026-11-04 | Companies only: legal forms 1.2, 1.3, 1.4, 1.5, 1.9 | Sole traders' names are personal data (GDPR); associations, foundations and anonymous records are not companies |

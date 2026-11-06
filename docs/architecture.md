@@ -76,7 +76,7 @@ Helpers:
 | `GET /api/companies?search=&province=&section=&division=&theme=&funded=&size=&min_projects=&min_funding=&ateco=&sort=&page=&page_size=` | `{items, count}`, 25 per page (max 100). `division` is the 2-digit ATECO division; `theme` and `funded` match companies that were **beneficiaries** of projects; `size=sme` also includes micro, small and medium; `min_projects` counts beneficiary projects and `min_funding` uses sole-beneficiary funding (euros); `sort` is `name` (default), `funding` (sole-beneficiary funding, empty last) or `projects` (beneficiary project count). Items include `beneficiary_projects` and `sole_beneficiary_funding` |
 | `GET /api/companies/{vat}` | All company fields, `provenance` (latest entry per field with source, assurance, confidence), `funding` (beneficiary/sole/shared project counts, sole-beneficiary funding, counts per role) and `projects` (up to 50, beneficiary roles first, newest first) with `projects_total` |
 | `POST /api/companies/{vat}/discover` | On-demand website discovery and contact reading for one company; returns `{discovery, company}` |
-| `GET /api/stats` | Totals, counts by province and ATECO section, sources with the company-data date, and `funding` (beneficiary companies and projects, sole-beneficiary funding, projects by theme) |
+| `GET /api/stats?province=&section=` | Totals, counts by province, ATECO section and size (`by_size`), sources with the company-data date, `funding` (beneficiary companies and projects, sole-beneficiary funding, projects by theme) and `aid`. The optional filters narrow every figure; the province chart ignores `province` and the sector chart ignores `section`, so the other options stay visible. Cached per filter until a new source snapshot is imported |
 
 ## Frontend
 

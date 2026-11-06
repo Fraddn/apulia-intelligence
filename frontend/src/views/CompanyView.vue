@@ -11,18 +11,29 @@
       <template v-if="company">
         <header class="card company__header">
           <h1 class="company__name">{{ company.name }}</h1>
-          <div class="company__chips">
-            <span class="chip mono">{{ t('company.fields.vat_number') }} {{ company.vat_number }}</span>
-            <span v-if="company.province" class="chip">{{ t(`provinces.${company.province}`) }}</span>
-            <span v-if="company.ateco_section" class="chip">
-              {{ company.ateco_section }} · {{ t(`sections.${company.ateco_section}`) }}
-            </span>
-          </div>
+          <p class="meta-line company__meta">
+            <span class="mono">{{ t('company.fields.vat_number') }} {{ company.vat_number }}</span>
+            <span v-if="company.province">{{ company.city ? `${company.city} (${company.province})` : t(`provinces.${company.province}`) }}</span>
+            <span v-if="company.ateco_section">{{ t(`sections.${company.ateco_section}`) }}</span>
+            <a v-if="company.website" :href="company.website" target="_blank" rel="noopener">{{ hostname(company.website) }}</a>
+          </p>
+          <dl v-if="facts.length" class="company__facts">
+            <div v-for="fact in facts" :key="fact.label" class="company__fact">
+              <dt class="company__fact-label">{{ fact.label }}</dt>
+              <dd class="company__fact-value">{{ fact.value }}</dd>
+            </div>
+          </dl>
         </header>
 
         <div class="company__groups">
           <article v-for="group in groups" :key="group.title" class="card">
             <h2 class="company__group-title">{{ group.title }}</h2>
+            <p v-if="group.main" class="meta-line company__card-source">
+              <span>{{ t('company.sourceUnlessNoted') }}</span>
+              <AssuranceBadge :assurance="group.main.assurance" />
+              <span>{{ group.main.source.name }}</span>
+              <span>{{ formatDate(group.main.data_date, locale) }}</span>
+            </p>
             <template v-if="group.key === 'location'">
               <DiscoveryStatus :searching="discovering" :discovery="discovery" />
               <WebsiteStatus :check="company.website_check" />
@@ -31,9 +42,9 @@
               <div v-for="row in group.rows" :key="row.field" class="company__row">
                 <dt class="company__term">{{ t(`company.fields.${row.field}`) }}</dt>
                 <dd class="company__value">
-                  <a v-if="row.href && row.value" :href="row.href" :target="row.href.startsWith('http') ? '_blank' : undefined" rel="noopener">{{ row.value }}</a>
-                  <span v-else>{{ row.value }}</span>
-                  <span v-if="row.provenance" class="company__source">
+                  <a v-if="row.href" :href="row.href" :title="row.title" :target="row.href.startsWith('http') ? '_blank' : undefined" rel="noopener">{{ row.value }}</a>
+                  <span v-else :title="row.title">{{ row.value }}</span>
+                  <span v-if="row.ownSource && row.provenance" class="company__source">
                     <AssuranceBadge :assurance="row.provenance.assurance" />
                     <span class="muted">
                       {{ row.provenance.source.name }} · {{ formatDate(row.provenance.data_date, locale) }}
@@ -42,9 +53,6 @@
                       </template>
                     </span>
                     <span v-if="row.note" class="muted company__source-note">{{ row.note }}</span>
-                    <span v-if="showRaw(row)" class="muted company__source-note">
-                      {{ t('company.rawValue', { value: row.provenance.raw_value }) }}
-                    </span>
                   </span>
                 </dd>
               </div>
@@ -115,10 +123,10 @@ import { useI18n } from 'vue-i18n'
 import { ApiError, api, type CompanyDetail, type Discovery, type Provenance, type Source } from '../api'
 import AidList from '../components/AidList.vue'
 import AssuranceBadge from '../components/AssuranceBadge.vue'
+import DiscoveryStatus from '../components/DiscoveryStatus.vue'
 import LoadState from '../components/LoadState.vue'
 import ProjectList from '../components/ProjectList.vue'
 import StatTile from '../components/StatTile.vue'
-import DiscoveryStatus from '../components/DiscoveryStatus.vue'
 import WebsiteStatus from '../components/WebsiteStatus.vue'
 import { formatCurrency, formatDate, formatNumber } from '../format'
 
@@ -128,6 +136,8 @@ interface Row {
   provenance?: Provenance
   href?: string
   note?: string
+  title?: string
+  ownSource?: boolean
 }
 
 const props = defineProps<{ vat: string }>()
@@ -176,10 +186,48 @@ watch(() => props.vat, load, { immediate: true })
 const pct = (value: number) =>
   new Intl.NumberFormat(locale.value, { style: 'percent', maximumFractionDigits: 0 }).format(value)
 
+function hostname(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
 const provenance = computed(() => new Map(company.value?.provenance.map((p) => [p.field, p]) ?? []))
 
+function rawTitle(value: string, p?: Provenance) {
+  const raw = p?.raw_value
+  if (!raw || raw === value || raw.replace(/\s+/g, ' ').trim() === value) return undefined
+  return t('company.rawValue', { value: raw })
+}
+
 function makeRow(field: keyof CompanyDetail, value: string, extra: Partial<Row> = {}): Row {
-  return { field, value, provenance: provenance.value.get(field), ...extra }
+  const p = provenance.value.get(field)
+  const title = [rawTitle(value, p), extra.title].filter(Boolean).join('\n') || undefined
+  return { field, value, provenance: p, ...extra, title }
+}
+
+const sourceKey = (p: Provenance) => `${p.source.name}|${p.assurance}|${p.data_date}`
+
+function withSharedSource(rows: Row[]) {
+  const counts = new Map<string, { count: number; provenance: Provenance }>()
+  for (const row of rows) {
+    if (!row.provenance || row.provenance.confidence !== null) continue
+    const key = sourceKey(row.provenance)
+    const entry = counts.get(key) ?? { count: 0, provenance: row.provenance }
+    entry.count += 1
+    counts.set(key, entry)
+  }
+  const main = [...counts.values()].sort((a, b) => b.count - a.count)[0]?.provenance
+  const mainKey = main ? sourceKey(main) : ''
+  return {
+    main,
+    rows: rows.map((row) => ({
+      ...row,
+      ownSource: Boolean(row.provenance) && (row.provenance!.confidence !== null || sourceKey(row.provenance!) !== mainKey || Boolean(row.note)),
+    })),
+  }
 }
 
 const groups = computed(() => {
@@ -188,22 +236,25 @@ const groups = computed(() => {
   const derivedProvince = provenance.value.get('province')?.assurance === 'derived'
   const all = [
     {
+      key: 'identity',
       title: t('company.identity'),
       rows: [
-        makeRow('vat_number', c.vat_number),
-        makeRow('tax_code', c.tax_code),
         makeRow('legal_form', c.legal_form),
         makeRow('status', c.status === 'unknown' ? '' : t(`status.${c.status}`)),
         makeRow('founded_on', c.founded_on ? formatDate(c.founded_on, locale.value) : ''),
+        makeRow('size_class', c.size_class === 'unknown' ? '' : t(`size.${c.size_class}`)),
+        makeRow('employees_band', c.employees_band),
+        makeRow('tax_code', c.tax_code === c.vat_number ? '' : c.tax_code),
       ],
     },
     {
+      key: 'activity',
       title: t('company.activity'),
       rows: [
-        makeRow('ateco_section', c.ateco_section ? `${c.ateco_section} · ${t(`sections.${c.ateco_section}`)}` : ''),
-        makeRow('ateco_code', c.ateco_code),
+        makeRow('ateco_code', c.ateco_code ? [c.ateco_section, c.ateco_code].filter(Boolean).join(' · ') : '', {
+          title: c.ateco_version ? t('company.atecoVersion', { version: c.ateco_version }) : undefined,
+        }),
         makeRow('ateco_description', c.ateco_description),
-        makeRow('ateco_version', c.ateco_version),
       ],
     },
     {
@@ -213,34 +264,45 @@ const groups = computed(() => {
         makeRow('province', c.province ? t(`provinces.${c.province}`) : '', {
           note: derivedProvince ? t('company.derivedProvince') : undefined,
         }),
-        makeRow('city', c.city),
-        makeRow('municipality_code', c.municipality_code),
+        makeRow('city', c.city, {
+          title: c.municipality_code ? t('company.istatCode', { code: c.municipality_code }) : undefined,
+        }),
         makeRow('address', c.address),
         makeRow('postcode', c.postcode),
-        makeRow('website', c.website, { href: c.website }),
+        makeRow('website', c.website, { href: c.website || undefined }),
         makeRow('phone', c.phone, { href: c.phone ? `tel:${c.phone.replace(/\s+/g, '')}` : undefined }),
         makeRow('email', c.email, { href: c.email ? `mailto:${c.email}` : undefined }),
         makeRow('pec', c.pec, { href: c.pec ? `mailto:${c.pec}` : undefined }),
       ],
     },
-    {
-      title: t('company.size'),
-      rows: [
-        makeRow('size_class', c.size_class === 'unknown' ? '' : t(`size.${c.size_class}`)),
-        makeRow('employees_band', c.employees_band),
-      ],
-    },
   ]
   return all
-    .map((group) => ({ ...group, rows: group.rows.filter((row) => row.value) }))
+    .map((group) => ({ ...group, ...withSharedSource(group.rows.filter((row) => row.value)) }))
     .filter((group) => group.rows.length || group.key === 'location')
 })
 
-function showRaw(r: Row) {
-  const raw = r.provenance?.raw_value
-  if (!raw || r.note) return false
-  return raw !== r.value && raw.replace(/\s+/g, ' ').trim() !== r.value
-}
+const facts = computed(() => {
+  const c = company.value
+  if (!c) return []
+  const items = [
+    { label: t('company.fields.size_class'), value: c.size_class === 'unknown' ? '' : t(`size.${c.size_class}`) },
+    { label: t('company.fields.employees_band'), value: c.employees_band },
+    { label: t('company.fields.founded_on'), value: c.founded_on ? c.founded_on.slice(0, 4) : '' },
+    {
+      label: t('funding.beneficiaryProjects'),
+      value: c.funding.beneficiary_projects ? formatNumber(c.funding.beneficiary_projects, locale.value) : '',
+    },
+    {
+      label: t('funding.soleBeneficiaryFunding'),
+      value: c.funding.sole_beneficiary_funding === null ? '' : formatCurrency(c.funding.sole_beneficiary_funding, locale.value),
+    },
+    {
+      label: t('aid.total'),
+      value: c.aid.count && c.aid.total_amount !== null ? formatCurrency(c.aid.total_amount, locale.value) : '',
+    },
+  ]
+  return items.filter((item) => item.value)
+})
 
 const otherRoles = computed(() =>
   Object.entries(company.value?.funding.roles ?? {})

@@ -35,7 +35,7 @@ describe('UserMenu', () => {
     expect(fetchMock.mock.calls[0][0]).toBe(SESSION)
     expect(wrapper.text()).toContain('Signed in as')
     expect(wrapper.find('.user-menu__name').text()).toBe('Mario Rossi')
-    expect(wrapper.find('.user-menu__name').attributes('title')).toBe('mario@example.com')
+    expect(wrapper.find('.user-menu__user').attributes('title')).toBe('mario@example.com')
   })
 
   it('shows a login link when signed out', async () => {

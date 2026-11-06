@@ -8,5 +8,5 @@ export const router = createRouter({
     { path: '/companies/:vat', name: 'company', component: () => import('./views/CompanyView.vue'), props: true },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('./views/NotFoundView.vue') },
   ],
-  scrollBehavior: () => ({ top: 0 }),
+  scrollBehavior: (to, from, saved) => saved ?? (to.path === from.path ? false : { top: 0 }),
 })

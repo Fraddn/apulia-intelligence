@@ -14,16 +14,11 @@ export default defineConfig(
       globals: globals.browser,
     },
     rules: {
-      'vue/block-order': ['error', { order: ['template', 'script', 'style'] }],
-      'vue/enforce-style-attribute': ['error', { allow: ['plain'] }],
-      'vue/no-restricted-block': ['error', { element: 'style', message: 'Styles go only in the global <style> of App.vue.' }],
+      'vue/block-order': ['error', { order: ['template', 'script'] }],
+      'vue/no-restricted-block': ['error', { element: 'style', message: 'Styles go only in src/main.css.' }],
       'vue/max-attributes-per-line': 'off',
       'vue/singleline-html-element-content-newline': 'off',
       'vue/multi-word-component-names': 'off',
     },
-  },
-  {
-    files: ['src/App.vue'],
-    rules: { 'vue/no-restricted-block': 'off' },
   },
 )

@@ -1,12 +1,16 @@
 from datetime import date
 from decimal import Decimal
 
+from django.core.cache import cache
 from django.test import TestCase
 
 from apps.companies.models import Assurance, Company, Project, ProjectRole, Source, SourceSnapshot, StateAid, WebsiteCheck
 
 
 class ApiTestCase(TestCase):
+    def setUp(self):
+        cache.clear()
+
     @classmethod
     def setUpTestData(cls):
         source = Source.objects.create(
@@ -106,6 +110,7 @@ class StatsTests(ApiTestCase):
         self.assertEqual(data["by_province"][0], {"province": "BA", "count": 2})
         self.assertEqual({p["province"] for p in data["by_province"]}, {"BA", "TA", "LE", "FG"})
         self.assertEqual(data["by_section"][0], {"section": "J", "count": 2})
+        self.assertEqual(data["by_size"], [{"size": "unknown", "count": 3}, {"size": "large", "count": 1}, {"size": "small", "count": 1}])
         self.assertNotIn("", [s["section"] for s in data["by_section"]])
         source = data["sources"][0]
         self.assertEqual(source["name"], "OpenCoesione")
@@ -291,6 +296,18 @@ class StateAidApiTests(ApiTestCase):
         self.assertEqual(data["companies"], 2)
         self.assertEqual(data["grants"], 4)
         self.assertEqual(data["total_amount"], 4000.5)
+
+    def test_stats_filtered_by_province_and_section(self):
+        data = self.client.get("/api/stats?province=BA").json()
+        self.assertEqual(data["total"], 2)
+        self.assertEqual(data["aid"]["companies"], 2)
+        self.assertEqual({p["province"] for p in data["by_province"]}, {"BA", "TA", "LE", "FG"})
+        self.assertEqual([s["section"] for s in data["by_section"]], ["J"])
+        data = self.client.get("/api/stats?section=C").json()
+        self.assertEqual(data["total"], 1)
+        self.assertEqual(data["aid"], {"companies": 0, "grants": 0, "total_amount": 0.0})
+        self.assertEqual(data["by_province"], [{"province": "LE", "count": 1}])
+        self.assertEqual(self.client.get("/api/stats?section=Z").status_code, 422)
 
 
 class WebsiteCheckApiTests(ApiTestCase):
