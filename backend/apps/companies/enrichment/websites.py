@@ -194,9 +194,9 @@ def address(text: str) -> dict:
     }
 
 
-def _get(url: str):
+def _get(url: str, timeout: float = 15):
     request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/html,text/plain;q=0.9,*/*;q=0.5"})
-    with urlopen(request, timeout=15) as response:
+    with urlopen(request, timeout=timeout) as response:
         content_type = response.headers.get("Content-Type", "")
         if "html" not in content_type and "text" not in content_type:
             return response.status, ""
@@ -204,10 +204,10 @@ def _get(url: str):
         return response.status, response.read(MAX_BYTES).decode(charset, errors="replace")
 
 
-def _robots(base: str) -> RobotFileParser:
+def _robots(base: str, timeout: float = 15) -> RobotFileParser:
     parser = RobotFileParser()
     try:
-        status, body = _get(urljoin(base, "/robots.txt"))
+        status, body = _get(urljoin(base, "/robots.txt"), timeout=timeout)
     except Exception:
         status, body = 404, ""
     parser.parse(body.splitlines() if status == 200 else [])

@@ -1,4 +1,5 @@
 import io
+from urllib.parse import urlparse
 from datetime import timedelta
 from unittest import mock
 
@@ -41,9 +42,23 @@ class CandidateTests(SimpleTestCase):
         self.assertFalse(discovery._resolves("a" * 80 + ".it"))
 
 
+class ResolveTests(SimpleTestCase):
+    def addresses(self, *ips):
+        return mock.patch.object(discovery.socket, "getaddrinfo", return_value=[(2, 1, 6, "", (ip, 443)) for ip in ips])
+
+    def test_public_address_counts(self):
+        with self.addresses("89.46.105.61"):
+            self.assertTrue(discovery._resolves("cosera.com"))
+
+    def test_loopback_and_private_answers_do_not_count(self):
+        for ip in ("127.0.0.1", "0.0.0.0", "192.168.1.1", "10.0.0.5", "::1"):
+            with self.subTest(ip=ip), self.addresses(ip):
+                self.assertFalse(discovery._resolves("notreal.it"))
+
+
 class ProbeTests(SimpleTestCase):
     def web(self, pages, robots="User-agent: *\nAllow: /"):
-        def get(url):
+        def get(url, timeout=None):
             if url.endswith("/robots.txt"):
                 return 200, robots
             if url in pages:
@@ -52,7 +67,9 @@ class ProbeTests(SimpleTestCase):
         return get
 
     def probe(self, live, pages, **kwargs):
+        hosts = {urlparse(url).hostname for url in pages}
         with mock.patch.object(discovery, "_resolves", side_effect=lambda d: d in live), \
+             mock.patch.object(discovery, "_listening", side_effect=lambda host, port: host in hosts), \
              mock.patch.object(websites, "_get", side_effect=self.web(pages, **kwargs)):
             return discovery.probe("VALLE FIORITA CATERING SRL", VAT)
 
@@ -75,6 +92,10 @@ class ProbeTests(SimpleTestCase):
     def test_falls_back_to_bare_domain(self):
         result = self.probe({"vallefiorita.it"}, {"https://vallefiorita.it/": PAGE_WITH_VAT})
         self.assertEqual(result.url, "https://vallefiorita.it/")
+
+    def test_falls_back_to_plain_http_when_https_fails(self):
+        result = self.probe({"vallefiorita.it"}, {"http://www.vallefiorita.it/": PAGE_WITH_VAT})
+        self.assertEqual(result.url, "http://www.vallefiorita.it/")
 
     def test_not_found_when_no_site_shows_vat(self):
         result = self.probe({"vallefiorita.it"}, {"https://www.vallefiorita.it/": PAGE_WITHOUT_VAT})

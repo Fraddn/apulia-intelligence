@@ -114,7 +114,7 @@ class FakeWeb:
         self.robots = robots
         self.requested = []
 
-    def __call__(self, url):
+    def __call__(self, url, timeout=None):
         self.requested.append(url)
         if url.endswith("/robots.txt"):
             return 200, self.robots
@@ -175,7 +175,7 @@ class FetchTests(TestCase):
         self.assertEqual([u for u in web.requested if not u.endswith("robots.txt")], [])
 
     def test_unreachable_site(self):
-        def broken(url):
+        def broken(url, timeout=None):
             raise OSError("connection refused")
         check = self.run_fetch(broken)
         self.assertEqual(check.status, WebsiteCheck.Status.UNREACHABLE)

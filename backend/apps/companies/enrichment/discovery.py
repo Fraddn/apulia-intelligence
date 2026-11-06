@@ -1,8 +1,10 @@
+import ipaddress
 import re
 import socket
 import threading
 import time
 import unicodedata
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
@@ -15,6 +17,9 @@ from . import websites
 TLDS = ("it", "com", "eu")
 MAX_CANDIDATES = 12
 MAX_LABEL = 63
+CONNECT_TIMEOUT = 2
+PAGE_TIMEOUT = 6
+PARALLEL_DOMAINS = 4
 CONFIDENCE = 0.95
 RETRY_DAYS = 180
 ON_DEMAND_DEADLINE = 25
@@ -63,8 +68,17 @@ def candidate_domains(name: str) -> list[str]:
 
 
 def _resolves(domain: str) -> bool:
+    """True only for public addresses: some home routers answer every unknown name with 127.0.0.1."""
     try:
-        socket.getaddrinfo(domain, 443)
+        addresses = {info[4][0] for info in socket.getaddrinfo(domain, 443)}
+    except (OSError, UnicodeError):
+        return False
+    return any(ipaddress.ip_address(address.split("%")[0]).is_global for address in addresses)
+
+
+def _listening(host: str, port: int) -> bool:
+    try:
+        socket.create_connection((host, port), timeout=CONNECT_TIMEOUT).close()
         return True
     except (OSError, UnicodeError):
         return False
@@ -77,7 +91,7 @@ def _shows_vat(url: str, html: str, vat: str, robots) -> bool:
         if not robots.can_fetch(websites.ROBOTS_AGENT, link):
             continue
         try:
-            status, page = websites._get(link)
+            status, page = websites._get(link, timeout=PAGE_TIMEOUT)
         except Exception:
             continue
         if status == 200 and websites.shows_vat(websites.visible_text(page), vat):
@@ -85,29 +99,48 @@ def _shows_vat(url: str, html: str, vat: str, robots) -> bool:
     return False
 
 
-def probe(name: str, vat: str, deadline: float | None = None) -> ProbeResult:
-    """Network-only: guess domains for a company and return the first one showing its VAT number."""
-    domains = candidate_domains(name)
-    if not domains:
-        return ProbeResult(WebsiteDiscovery.Status.NO_CANDIDATES)
-    started = time.monotonic()
-    for domain in (d for d in domains if _resolves(d)):
-        for url in (f"https://www.{domain}/", f"https://{domain}/"):
-            if deadline is not None and time.monotonic() - started > deadline:
-                return ProbeResult(TIMEOUT, "", domains)
-            robots = websites._robots(url)
+def _check_domain(domain: str, vat: str) -> str:
+    """Return the URL of this domain's site if it shows the VAT number; stop at the first site that answers."""
+    if not _resolves(domain):
+        return ""
+    for scheme, port in (("https", 443), ("http", 80)):
+        for host in (f"www.{domain}", domain):
+            if not _listening(host, port):
+                continue
+            url = f"{scheme}://{host}/"
+            robots = websites._robots(url, timeout=PAGE_TIMEOUT)
             if not robots.can_fetch(websites.ROBOTS_AGENT, url):
                 continue
             try:
-                status, html = websites._get(url)
+                status, html = websites._get(url, timeout=PAGE_TIMEOUT)
             except Exception:
                 continue
             if status != 200 or not html:
                 continue
-            if _shows_vat(url, html, vat, robots):
-                return ProbeResult(WebsiteDiscovery.Status.FOUND, url, domains)
-            break
-    return ProbeResult(WebsiteDiscovery.Status.NOT_FOUND, "", domains)
+            return url if _shows_vat(url, html, vat, robots) else ""
+    return ""
+
+
+def probe(name: str, vat: str, deadline: float | None = None) -> ProbeResult:
+    """Network-only: check the guessed domains in parallel and return the first one showing the VAT number."""
+    domains = candidate_domains(name)
+    if not domains:
+        return ProbeResult(WebsiteDiscovery.Status.NO_CANDIDATES)
+    ends_at = time.monotonic() + deadline if deadline is not None else None
+    pool = ThreadPoolExecutor(max_workers=PARALLEL_DOMAINS)
+    pending = {pool.submit(_check_domain, domain, vat) for domain in domains}
+    try:
+        while pending:
+            remaining = None if ends_at is None else ends_at - time.monotonic()
+            if remaining is not None and remaining <= 0:
+                return ProbeResult(TIMEOUT, "", domains)
+            done, pending = wait(pending, timeout=remaining, return_when=FIRST_COMPLETED)
+            for future in done:
+                if future.result():
+                    return ProbeResult(WebsiteDiscovery.Status.FOUND, future.result(), domains)
+        return ProbeResult(WebsiteDiscovery.Status.NOT_FOUND, "", domains)
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
 
 def save(company: Company, result: ProbeResult) -> WebsiteDiscovery:
