@@ -15,8 +15,24 @@
   </svg>
 </template>
 
+<script lang="ts">
+export type IconName =
+  | 'dashboard'
+  | 'companies'
+  | 'user'
+  | 'logout'
+  | 'login'
+  | 'sun'
+  | 'moon'
+  | 'info'
+  | 'close'
+  | 'lock'
+  | 'mail'
+  | 'check'
+  | 'alert'
+</script>
+
 <script setup lang="ts">
-type IconName = 'dashboard' | 'companies' | 'user' | 'logout' | 'login' | 'sun' | 'moon' | 'info' | 'close'
 
 const ICONS: Record<IconName, string[]> = {
   dashboard: ['M4 4h6v8H4z', 'M14 4h6v5h-6z', 'M14 13h6v7h-6z', 'M4 16h6v4H4z'],
@@ -28,6 +44,10 @@ const ICONS: Record<IconName, string[]> = {
   moon: ['M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z'],
   info: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 16v-5', 'M12 8h.01'],
   close: ['M6 6l12 12', 'M18 6L6 18'],
+  lock: ['M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z', 'M8 11V7a4 4 0 0 1 8 0v4'],
+  mail: ['M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z', 'M3 7l9 6 9-6'],
+  check: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M8 12l3 3 5-6'],
+  alert: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 8v5', 'M12 16h.01'],
 }
 
 withDefaults(defineProps<{ name: IconName; size?: number }>(), { size: 18 })

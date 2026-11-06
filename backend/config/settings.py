@@ -45,6 +45,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -95,7 +96,8 @@ AUTHENTICATION_BACKENDS = [
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "it"
+LANGUAGES = [("it", "Italiano"), ("en", "English")]
 TIME_ZONE = "Europe/Rome"
 USE_I18N = True
 USE_TZ = True
@@ -114,23 +116,36 @@ if TESTING:
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- allauth ---------------------------------------------------------------
+# Login is required for the whole app. The Vue SPA renders every auth page and
+# talks to allauth via /_allauth/browser/v1/... (session cookie + CSRF).
 LOGIN_REDIRECT_URL = "/"
 ACCOUNT_LOGOUT_REDIRECT_URL = "/"
-ACCOUNT_LOGIN_METHODS = {"email"}
-ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
-ACCOUNT_EMAIL_VERIFICATION = "optional"
+ACCOUNT_LOGIN_METHODS = {"email", "username"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*"]
+ACCOUNT_USERNAME_MIN_LENGTH = 3
+ACCOUNT_USERNAME_VALIDATORS = "apps.core.accounts.username_validators"
+ACCOUNT_PRESERVE_USERNAME_CASING = False
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_EMAIL_VERIFICATION = env("ACCOUNT_EMAIL_VERIFICATION", default="none")
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+ACCOUNT_EMAIL_SUBJECT_PREFIX = "[Puglia Imprese] "
+HEADLESS_ONLY = True
 
-# Headless mode: the Vue SPA talks to allauth via /_allauth/browser/v1/...
 FRONTEND_URL = env("CORS_FRONTEND_URL")
 HEADLESS_FRONTEND_URLS = {
     "account_confirm_email": f"{FRONTEND_URL}/account/verify-email/{{key}}",
-    "account_reset_password_from_key": f"{FRONTEND_URL}/account/password/reset/key/{{key}}",
-    "account_signup": f"{FRONTEND_URL}/account/signup",
+    "account_signup": f"{FRONTEND_URL}/signup",
 }
 
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
 )
+EMAIL_HOST = env("EMAIL_HOST", default="localhost")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Puglia Imprese <noreply@localhost>")
 
 # --- security (prod) -------------------------------------------------------
 if not DEBUG:

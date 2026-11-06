@@ -405,6 +405,29 @@ def _funding_stats(scope):
     }
 
 
+class SummaryOut(Schema):
+    companies: int
+    funded_projects: int
+    aid_grants: int
+
+
+@router.get("/summary", response=SummaryOut, auth=None)
+def summary(request):
+    """Three headline totals for the login page; public, unlike /stats."""
+    latest = SourceSnapshot.objects.aggregate(latest=Max("id"))["latest"]
+    return cache.get_or_set(f"summary:{latest}", _summary, STATS_CACHE_SECONDS)
+
+
+def _summary():
+    return {
+        "companies": Company.objects.count(),
+        "funded_projects": Project.objects.filter(
+            id__in=ProjectRole.objects.filter(role=ProjectRole.Role.BENEFICIARY).values("project_id")
+        ).count(),
+        "aid_grants": StateAid.objects.count(),
+    }
+
+
 @router.get("/stats", response=StatsOut)
 def stats(request, province: ProvinceCode | None = None, section: SectionCode | None = None):
     """Totals for the dashboard; each chart ignores its own filter so the other options stay visible."""

@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase
 
@@ -10,6 +11,7 @@ from apps.companies.models import Assurance, Company, Project, ProjectRole, Sour
 class ApiTestCase(TestCase):
     def setUp(self):
         cache.clear()
+        self.client.force_login(get_user_model().objects.create_user("tester", "tester@example.com", "pw"))
 
     @classmethod
     def setUpTestData(cls):

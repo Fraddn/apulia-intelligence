@@ -53,7 +53,7 @@ Variables:
 Serverplan VPS:
 1. Install Docker with the compose plugin.
 2. Create a deploy user and add the public half of the deploy key to its `~/.ssh/authorized_keys`. The user needs permission to run Docker (the `docker` group).
-3. Create `DEPLOY_PATH` and put a production `.env` in it (`DEBUG=False`, a real `SECRET_KEY`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`).
+3. Create `DEPLOY_PATH` and put a production `.env` in it (`DEBUG=False`, a real `SECRET_KEY`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_FRONTEND_URL` set to the public site URL, and SMTP settings: `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`). SMTP is optional while `ACCOUNT_EMAIL_VERIFICATION=none` (the default); it is needed before switching verification to `mandatory`.
 4. The `data/` folder (database and raw files) lives in `DEPLOY_PATH/data` and is never overwritten by deploys.
 5. Put a reverse proxy with HTTPS (e.g. Caddy) in front of the app on port 8000, and don't expose port 8000 publicly.
 

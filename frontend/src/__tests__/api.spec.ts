@@ -34,3 +34,22 @@ describe('api', () => {
     expect(fetchMock.mock.calls[0][1].method).toBe('POST')
   })
 })
+
+describe('api auth', () => {
+  it('sends the CSRF token on POST', async () => {
+    document.cookie = 'csrftoken=abc123'
+    const fetchMock = mockFetch(200, { discovery: null, company: {} })
+    await api.discover('01775410747')
+    expect(fetchMock.mock.calls[0][1].headers['X-CSRFToken']).toBe('abc123')
+  })
+
+  it('calls the unauthorized handler on 401', async () => {
+    vi.resetModules()
+    const fresh = await import('../api')
+    const handler = vi.fn()
+    fresh.onUnauthorized(handler)
+    mockFetch(401, {})
+    await expect(fresh.api.stats()).rejects.toMatchObject({ status: 401 })
+    expect(handler).toHaveBeenCalledOnce()
+  })
+})

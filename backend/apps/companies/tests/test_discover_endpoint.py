@@ -1,6 +1,7 @@
 from datetime import timedelta
 from unittest import mock
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
@@ -23,6 +24,7 @@ def fake_fetch(company, force=False):
 
 class DiscoverEndpointTests(TestCase):
     def setUp(self):
+        self.client.force_login(get_user_model().objects.create_user("tester", "tester@example.com", "pw"))
         self.company = Company.objects.create(vat_number=VAT, name="VALLE FIORITA CATERING SRL", province="BR")
 
     def post(self):

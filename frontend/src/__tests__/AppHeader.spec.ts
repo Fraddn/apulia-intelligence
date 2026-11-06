@@ -10,7 +10,7 @@ afterEach(() => vi.unstubAllGlobals())
 async function render(fetchResult: Promise<unknown>) {
   vi.stubGlobal('fetch', vi.fn().mockReturnValue(fetchResult))
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:p(.*)*', component: { template: '<div />' } }] })
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/login', name: 'login', component: { template: '<div />' } }, { path: '/:p(.*)*', component: { template: '<div />' } }] })
   const wrapper = mount(AppHeader, { global: { plugins: [i18n, router] } })
   await flushPromises()
   return wrapper

@@ -176,8 +176,21 @@ export class ApiError extends Error {
   }
 }
 
+export function csrfToken(): string {
+  return document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/)?.[1] ?? ''
+}
+
+let unauthorizedHandler: (() => void) | null = null
+
+export function onUnauthorized(handler: () => void) {
+  unauthorizedHandler = handler
+}
+
 async function request<T>(path: string, method = 'GET'): Promise<T> {
-  const response = await fetch(`/api${path}`, { method, headers: { Accept: 'application/json' } })
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (method !== 'GET') headers['X-CSRFToken'] = csrfToken()
+  const response = await fetch(`/api${path}`, { method, credentials: 'same-origin', headers })
+  if (response.status === 401) unauthorizedHandler?.()
   if (!response.ok) throw new ApiError(response.status)
   return response.json() as Promise<T>
 }
@@ -198,8 +211,15 @@ export interface Health {
   version: string
 }
 
+export interface Summary {
+  companies: number
+  funded_projects: number
+  aid_grants: number
+}
+
 export const api = {
   health: () => get<Health>('/health'),
+  summary: () => get<Summary>('/summary'),
   stats: (scope: { province?: string; section?: string } = {}) => get<Stats>(`/stats${buildQuery(scope)}`),
   companies: (params: CompanyQuery = {}) => get<Page<CompanyListItem>>(`/companies${buildQuery(params)}`),
   company: (vat: string) => get<CompanyDetail>(`/companies/${encodeURIComponent(vat)}`),

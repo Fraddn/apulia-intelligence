@@ -1,0 +1,9 @@
+<template>
+  <svg viewBox="0 0 32 32" :width="size" :height="size" fill="currentColor" aria-hidden="true">
+    <circle cx="16" cy="4.5" r="1.8" /><rect x="13.5" y="7.5" width="5" height="2.5" rx="1" /><rect x="11.5" y="11" width="9" height="2.5" rx="1" /><rect x="9.5" y="14.5" width="13" height="2.5" rx="1" /><rect x="7" y="18" width="18" height="2.5" rx="1" /><path fill-rule="evenodd" d="M8.5 21.5h15v7.5h-15z M14 29v-3a2 2 0 0 1 4 0v3z" />
+  </svg>
+</template>
+
+<script setup lang="ts">
+withDefaults(defineProps<{ size?: number }>(), { size: 24 })
+</script>
