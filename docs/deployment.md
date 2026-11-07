@@ -48,14 +48,168 @@ Variables:
 | `DEPLOY_ENABLED` | `true` turns on deploys |
 | `DEPLOY_URL` | `https://apulia.example.it` (used for the health check) |
 
-## Server setup (one time)
+## First launch on the Serverplan VPS
 
-Serverplan VPS:
-1. Install Docker with the compose plugin.
-2. Create a deploy user and add the public half of the deploy key to its `~/.ssh/authorized_keys`. The user needs permission to run Docker (the `docker` group).
-3. Create `DEPLOY_PATH` and put a production `.env` in it (`DEBUG=False`, a real `SECRET_KEY`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_FRONTEND_URL` set to the public site URL, and SMTP settings: `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`). SMTP is optional while `ACCOUNT_EMAIL_VERIFICATION=none` (the default); it is needed before switching verification to `mandatory`.
-4. The `data/` folder (database and raw files) lives in `DEPLOY_PATH/data` and is never overwritten by deploys.
-5. Put a reverse proxy with HTTPS (e.g. Caddy) in front of the app on port 8000, and don't expose port 8000 publicly.
+The examples use the domain `pugliaimprese.it`, the server IP `203.0.113.10`, the user `apulia` and the app folder `/home/apulia/app`. Replace them with yours. Commands marked **local** run on your computer, **server** in an SSH session on the VPS.
+
+### 1. The VPS
+
+Order a Serverplan VPS with a plain **Ubuntu 24.04 LTS** (or Debian 12), no control panel. A panel like Plesk or cPanel runs its own web server on ports 80/443, which Caddy needs. 2 GB RAM and 20 GB disk are enough (the database is about 0.7 GB). Serverplan emails the IP address and the root password.
+
+### 2. Domain
+
+In the DNS settings of the domain (Serverplan panel or your registrar), add an **A record** `pugliaimprese.it → 203.0.113.10` (and `www` too if you want it). Changes can take from minutes to a few hours. Check with:
+
+```bash
+dig +short pugliaimprese.it      # local: must print the VPS IP
+```
+
+### 3. Prepare the server (one time)
+
+**server**, logged in as root (`ssh root@203.0.113.10`):
+
+```bash
+apt update && apt upgrade -y
+
+# Docker + compose plugin
+curl -fsSL https://get.docker.com | sh
+
+# a normal user that runs the app and can use Docker
+adduser apulia
+usermod -aG docker apulia
+
+# firewall: SSH, HTTP, HTTPS only
+ufw allow OpenSSH
+ufw allow 80/tcp
+ufw allow 443
+ufw enable
+```
+
+Let your SSH key log in as `apulia`, so you don't need the password every time. **local**:
+
+```bash
+ssh-copy-id apulia@203.0.113.10
+ssh apulia@203.0.113.10          # should log in without a password
+```
+
+### 4. Upload the code
+
+**local**, from the project folder (the same excludes as the CI deploy):
+
+```bash
+rsync -az --delete \
+  --exclude='.git/' --exclude='.github/' --exclude='.claude/' \
+  --exclude='data/' --exclude='.env' --exclude='docs/' \
+  --exclude='node_modules/' --exclude='.venv/' --exclude='frontend/dist/' \
+  ./ apulia@203.0.113.10:/home/apulia/app/
+```
+
+### 5. Production `.env`
+
+**server**, as `apulia`:
+
+```bash
+cd ~/app
+python3 -c "import secrets; print(secrets.token_urlsafe(50))"   # copy the output for SECRET_KEY
+nano .env
+```
+
+```
+SECRET_KEY=<the generated value>
+DEBUG=False
+SITE_ADDRESS=pugliaimprese.it
+ALLOWED_HOSTS=pugliaimprese.it
+CSRF_TRUSTED_ORIGINS=https://pugliaimprese.it
+CORS_FRONTEND_URL=https://pugliaimprese.it
+ACCOUNT_EMAIL_VERIFICATION=none
+```
+
+Then `chmod 600 .env` so only `apulia` can read it. Email (SMTP) settings are only needed before switching `ACCOUNT_EMAIL_VERIFICATION` to `mandatory`: `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` (see `.env.example`).
+
+### 6. Upload the database (first launch only)
+
+**local**: stop `runserver` and any import command first, then check that `data/` has no `db.sqlite3-wal` file (if it does, something still has the database open). Then:
+
+```bash
+ssh apulia@203.0.113.10 "mkdir -p ~/app/data/raw"
+rsync -P data/db.sqlite3 apulia@203.0.113.10:/home/apulia/app/data/
+```
+
+The raw files in `data/raw/` are only needed to re-run imports on the server. After launch, **never upload the whole database again**: it would erase the user accounts created on the server (see [Populating production](#populating-production)).
+
+### 7. Start
+
+**server**:
+
+```bash
+cd ~/app
+sh deploy/vps.sh                 # builds both images and starts them; takes a few minutes the first time
+docker compose ps                # backend and web should be "Up"
+docker compose logs web          # look for "certificate obtained successfully"
+```
+
+Open **https://pugliaimprese.it**. Check the API with `curl https://pugliaimprese.it/api/health`.
+
+### 8. Admin account
+
+**server**:
+
+```bash
+cd ~/app
+docker compose exec backend python manage.py createsuperuser
+```
+
+The admin is at `https://pugliaimprese.it/admin/`.
+
+### 9. Automatic deploys (optional, recommended)
+
+Instead of steps 4 and 7 by hand, GitHub can deploy every push to `main`. Fill in the secrets and variables in [Enabling deploys](#enabling-deploys) with `DEPLOY_USER=apulia` and `DEPLOY_PATH=/home/apulia/app`. For `DEPLOY_SSH_KEY`, create a separate key just for GitHub:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/apulia_deploy -N ""                 # local
+ssh-copy-id -i ~/.ssh/apulia_deploy.pub apulia@203.0.113.10        # local
+cat ~/.ssh/apulia_deploy                                            # paste into DEPLOY_SSH_KEY
+ssh-keyscan 203.0.113.10                                            # paste into DEPLOY_KNOWN_HOSTS
+```
+
+Then set `DEPLOY_ENABLED=true`. The deploy never touches `.env` or `data/`.
+
+## Everyday operations
+
+**server**, in `~/app`:
+
+| Task | Command |
+|---|---|
+| Update by hand (after uploading code as in step 4) | `sh deploy/vps.sh` |
+| Status | `docker compose ps` |
+| Logs (live) | `docker compose logs -f` (only Django: `logs -f backend`) |
+| Restart after editing `.env` | `docker compose up -d` |
+| Stop / start | `docker compose down` / `docker compose up -d` |
+| Django shell or commands | `docker compose exec backend python manage.py <command>` |
+
+Containers restart by themselves after a crash or a server reboot (`restart: unless-stopped`).
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| Browser can't connect, or `logs web` shows certificate errors | DNS doesn't point to the VPS yet (`dig +short`), or ports 80/443 are closed (`ufw status`) or taken by another web server (`sudo ss -tlnp \| grep -E ':80\|:443'`). Fix it and run `docker compose restart web`. |
+| "Bad Request (400)" | The domain is missing from `ALLOWED_HOSTS`. |
+| Login fails with a CSRF error | `CSRF_TRUSTED_ORIGINS` must be exactly `https://<domain>`. |
+| Site loads but shows no companies | The database wasn't uploaded (step 6); `migrate` created an empty one. |
+| `permission denied` on the Docker socket | `apulia` isn't in the `docker` group yet: log out and back in after `usermod`. |
+| Build stops, out of memory | Add swap: `sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`. |
+
+## Containers
+
+`docker-compose.yml` runs two containers, both built from the one `Dockerfile`:
+
+| Service | Stage | What it does |
+|---|---|---|
+| `web` | `web` | Caddy. Owns ports 80/443, gets and renews the HTTPS certificate for `SITE_ADDRESS` automatically, redirects http to https, serves the built Vue app (`frontend/dist`, built in the `frontend` stage) and forwards `/api`, `/_allauth`, `/admin` and `/static` to `backend`. Config: `deploy/Caddyfile`. Certificates live in the `caddy_data` volume. |
+| `backend` | `backend` | Django + gunicorn on port 8000, reachable only from the server itself and from Caddy. |
+
+Unknown routes fall back to `index.html` so Vue router URLs like `/companies/123` work on reload. Without `SITE_ADDRESS` Caddy serves `https://localhost` with a self-signed certificate.
 
 ## Backups
 

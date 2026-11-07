@@ -1,4 +1,17 @@
-FROM python:3.13-slim
+FROM node:24-alpine AS frontend
+
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ .
+RUN npm run build
+
+FROM caddy:2-alpine AS web
+
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
+COPY --from=frontend /frontend/dist /srv
+
+FROM python:3.13-slim AS backend
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

@@ -47,6 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: docker build -t apulia-intelligence:ci .
+      - run: docker build --target web -t apulia-intelligence-web:ci .
       - name: Smoke test container
         run: |
           docker run -d --name app -p 8000:8000 -e SECRET_KEY=ci -e DEBUG=True apulia-intelligence:ci
