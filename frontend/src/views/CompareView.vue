@@ -73,6 +73,7 @@
                 <th v-for="company in companies" :key="company.vat_number" scope="col" class="compare__company">
                   <div class="compare__company-head">
                     <span class="compare__avatar" aria-hidden="true">{{ initials(company.name) }}</span>
+                    <SaveButton :vat="company.vat_number" :name="company.name" icon-only class="compare__save" />
                     <button
                       type="button"
                       class="compare__remove"
@@ -158,6 +159,7 @@ import { api, type CompanyDetail, type CompanyListItem } from '../api'
 import AppIcon from '../components/AppIcon.vue'
 import LoadState from '../components/LoadState.vue'
 import PageHeader from '../components/PageHeader.vue'
+import SaveButton from '../components/SaveButton.vue'
 import { formatCurrency, formatDate, formatNumber } from '../format'
 
 interface Row {

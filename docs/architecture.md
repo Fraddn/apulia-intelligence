@@ -48,6 +48,8 @@ Coverage happens in two stages:
 
 ## Data model (`apps/companies`)
 
+`apps/library` holds `SavedCompany` (user, company, note, saved_at; one row per user and company).
+
 | Model | Purpose |
 |---|---|
 | `Company` | One per VAT number (validated). Identity, ATECO (section + code, version 2007), province (BA, BT, BR, FG, LE, TA), size, status. `profile_level` is `candidate` or `profile`. |
@@ -77,10 +79,12 @@ Helpers:
 | `GET /api/companies/{vat}` | All company fields, `provenance` (latest entry per field with source, assurance, confidence), `funding` (beneficiary/sole/shared project counts, sole-beneficiary funding, counts per role) and `projects` (up to 50, beneficiary roles first, newest first) with `projects_total` |
 | `POST /api/companies/{vat}/discover` | On-demand website discovery and contact reading for one company; returns `{discovery, company}` |
 | `GET /api/stats?province=&section=` | Totals, counts by province, ATECO section and size (`by_size`), sources with the company-data date, `funding` (beneficiary companies and projects, sole-beneficiary funding, projects by theme) and `aid`. The optional filters narrow every figure; the province chart ignores `province` and the sector chart ignores `section`, so the other options stay visible. Cached per filter until a new source snapshot is imported |
+| `GET /api/library` | The signed-in user's saved companies (list fields plus `saved_at` and `note`), newest first |
+| `POST /api/library/{vat}` · `PATCH` (`{note}`, max 500 chars) · `DELETE` | Save a company (idempotent, keeps the note), edit its note, remove it; each user only sees and changes their own entries (max 1000) |
 
 ## Frontend
 
-Pages: dashboard (`/`), company explorer (`/companies`, filters kept in the URL), company profile (`/companies/:vat`, including a "Funded projects" section) and comparison (`/compare?vats=…`, up to 4 companies side by side, picked with a search box; missing values shown as "–", the highest number per row highlighted, plus a data-completeness row). Account pages: `/login`, `/signup` and `/account/verify-email/:token` (only used when email verification is switched on).
+Pages: dashboard (`/`), company explorer (`/companies`, filters kept in the URL), company profile (`/companies/:vat`, including a "Funded projects" section) and comparison (`/compare?vats=…`, up to 4 companies side by side, picked with a search box; missing values shown as "–", the highest number per row highlighted, plus a data-completeness row) and library (`/library`, the user's saved companies with private notes, a filter, and ticking 2–4 to compare). A Save button sits on the company page, in the companies list and in the comparison. Glossary (`/info`, the "Info" tab): every term, code and abbreviation used in the app, grouped and searchable; each term has an anchor (`/info#term-ateco`). Account pages: `/login`, `/signup` and `/account/verify-email/:token` (only used when email verification is switched on).
 
 - In development, Vite proxies `/api`, `/_allauth`, `/admin` and `/static` to Django (`API_PROXY_TARGET`, default `http://localhost:8000`), so no CORS setup is needed. In production Caddy does the same: it serves the built app and routes those paths to Django on one domain (see [deployment.md](deployment.md)).
 - Auth (full details and a file-by-file guide in [authentication.md](authentication.md)): login is required for everything except the account pages, `/api/health` and `/api/summary` (three headline totals shown on the login page).

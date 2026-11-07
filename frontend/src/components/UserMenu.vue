@@ -6,9 +6,9 @@
         <span class="visually-hidden">{{ t('auth.signedInAs') }}</span>
         <strong class="user-menu__name">{{ user.display }}</strong>
       </span>
-      <button type="button" class="btn btn--small btn--round user-menu__logout" @click="onLogout">
+      <button type="button" class="btn btn--small btn--round user-menu__logout" :title="t('auth.logOut')" @click="onLogout">
         <AppIcon name="logout" :size="16" />
-        {{ t('auth.logOut') }}
+        <span class="user-menu__logout-label">{{ t('auth.logOut') }}</span>
       </button>
     </template>
     <RouterLink

@@ -186,13 +186,19 @@ export function onUnauthorized(handler: () => void) {
   unauthorizedHandler = handler
 }
 
-async function request<T>(path: string, method = 'GET'): Promise<T> {
+async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (method !== 'GET') headers['X-CSRFToken'] = csrfToken()
-  const response = await fetch(`/api${path}`, { method, credentials: 'same-origin', headers })
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  const response = await fetch(`/api${path}`, {
+    method,
+    credentials: 'same-origin',
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
   if (response.status === 401) unauthorizedHandler?.()
   if (!response.ok) throw new ApiError(response.status)
-  return response.json() as Promise<T>
+  return (response.status === 204 ? undefined : response.json()) as Promise<T>
 }
 
 const get = <T>(path: string) => request<T>(path)
@@ -204,6 +210,11 @@ export function buildQuery(params: CompanyQuery): string {
   }
   const text = query.toString()
   return text ? `?${text}` : ''
+}
+
+export interface SavedCompany extends CompanyListItem {
+  saved_at: string
+  note: string
 }
 
 export interface Health {
@@ -224,4 +235,8 @@ export const api = {
   companies: (params: CompanyQuery = {}) => get<Page<CompanyListItem>>(`/companies${buildQuery(params)}`),
   company: (vat: string) => get<CompanyDetail>(`/companies/${encodeURIComponent(vat)}`),
   discover: (vat: string) => request<DiscoveryResult>(`/companies/${encodeURIComponent(vat)}/discover`, 'POST'),
+  library: () => get<SavedCompany[]>('/library'),
+  save: (vat: string) => request<SavedCompany>(`/library/${encodeURIComponent(vat)}`, 'POST'),
+  unsave: (vat: string) => request<void>(`/library/${encodeURIComponent(vat)}`, 'DELETE'),
+  saveNote: (vat: string, note: string) => request<SavedCompany>(`/library/${encodeURIComponent(vat)}`, 'PATCH', { note }),
 }

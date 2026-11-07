@@ -33,6 +33,10 @@ export type IconName =
   | 'compare'
   | 'search'
   | 'plus'
+  | 'bookmark'
+  | 'trash'
+  | 'note'
+  | 'edit'
 </script>
 
 <script setup lang="ts">
@@ -54,6 +58,10 @@ const ICONS: Record<IconName, string[]> = {
   compare: ['M4 4h6v16H4z', 'M14 4h6v16h-6z', 'M7 9h0', 'M17 9h0'],
   search: ['M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z', 'M20 20l-4-4'],
   plus: ['M12 5v14', 'M5 12h14'],
+  note: ['M5 4h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H10l-5 4v-4H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z', 'M8 8h8', 'M8 12h5'],
+  trash: ['M4 7h16', 'M10 11v6', 'M14 11v6', 'M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13', 'M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3'],
+  edit: ['M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z', 'M13.5 6.5l4 4'],
+  bookmark: ['M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z'],
 }
 
 withDefaults(defineProps<{ name: IconName; size?: number }>(), { size: 18 })

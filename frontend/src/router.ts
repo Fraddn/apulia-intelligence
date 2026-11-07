@@ -13,6 +13,8 @@ export const router = createRouter({
   routes: [
     { path: '/', name: 'dashboard', component: () => import('./views/DashboardView.vue') },
     { path: '/companies', name: 'companies', component: () => import('./views/CompaniesView.vue') },
+    { path: '/info', name: 'glossary', component: () => import('./views/GlossaryView.vue') },
+    { path: '/library', name: 'library', component: () => import('./views/LibraryView.vue') },
     { path: '/compare', name: 'compare', component: () => import('./views/CompareView.vue') },
     { path: '/companies/:vat', name: 'company', component: () => import('./views/CompanyView.vue'), props: true },
     { path: '/login', name: 'login', component: () => import('./views/LoginView.vue'), meta: { public: true, guestOnly: true } },
@@ -26,7 +28,8 @@ export const router = createRouter({
     },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('./views/NotFoundView.vue') },
   ],
-  scrollBehavior: (to, from, saved) => saved ?? (to.path === from.path ? false : { top: 0 }),
+  scrollBehavior: (to, from, saved) =>
+    saved ?? (to.hash ? { el: decodeURIComponent(to.hash), top: 88 } : to.path === from.path ? false : { top: 0 }),
 })
 
 export function safeNext(value: unknown): string {

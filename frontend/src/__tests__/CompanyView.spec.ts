@@ -3,9 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../locales/en'
+import { resetLibrary } from '../library'
 import CompanyView from '../views/CompanyView.vue'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  resetLibrary()
+})
 
 const source = { name: 'OpenCoesione', kind: 'open_data', url: '', licence: '', attribution: '' }
 const official = (field: string, raw = '') => ({
@@ -25,7 +29,9 @@ const company: Record<string, unknown> = {
 
 async function render(overrides: Record<string, unknown> = {}) {
   const body = { ...company, ...overrides }
-  const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => body })
+  const fetchMock = vi.fn((url: string) =>
+    Promise.resolve({ ok: true, status: 200, json: async () => (url.startsWith('/api/library') ? [] : body) }),
+  )
   vi.stubGlobal('fetch', fetchMock)
   const router = createRouter({
     history: createMemoryHistory(),

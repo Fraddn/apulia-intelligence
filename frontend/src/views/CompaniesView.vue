@@ -85,7 +85,21 @@
           <table class="companies__table">
             <thead>
               <tr>
-                <th scope="col">{{ t('companies.columns.name') }}</th>
+                <th scope="col">
+                  <div class="companies__name-head">
+                    {{ t('companies.columns.name') }}
+                    <button
+                      v-if="pageNotes.length"
+                      type="button"
+                      class="companies__notes-all"
+                      :aria-pressed="allNotesOpen"
+                      @click="toggleAllNotes"
+                    >
+                      <AppIcon name="note" :size="16" />
+                      {{ allNotesOpen ? t('companies.hideNotes') : t('companies.showNotes') }}
+                    </button>
+                  </div>
+                </th>
                 <th scope="col">{{ t('companies.columns.vat') }}</th>
                 <th scope="col">{{ t('companies.columns.location') }}</th>
                 <th scope="col">{{ t('companies.columns.sector') }}</th>
@@ -97,7 +111,25 @@
             <tbody :key="resultId">
               <tr v-for="company in page.items" :key="company.vat_number">
                 <td>
-                  <RouterLink :to="{ name: 'company', params: { vat: company.vat_number } }">{{ company.name }}</RouterLink>
+                  <div class="companies__name-cell">
+                    <SaveButton :vat="company.vat_number" :name="company.name" icon-only class="companies__save" />
+                    <RouterLink :to="{ name: 'company', params: { vat: company.vat_number } }">{{ company.name }}</RouterLink>
+                    <button
+                      v-if="notes.get(company.vat_number)"
+                      type="button"
+                      class="companies__note-toggle"
+                      :class="{ 'companies__note-toggle--open': openNotes.has(company.vat_number) }"
+                      :aria-expanded="openNotes.has(company.vat_number)"
+                      :aria-label="t(openNotes.has(company.vat_number) ? 'companies.hideNote' : 'companies.showNote', { name: company.name })"
+                      :title="t(openNotes.has(company.vat_number) ? 'companies.hideNote' : 'companies.showNote', { name: company.name })"
+                      @click="toggleNote(company.vat_number)"
+                    >
+                      <AppIcon name="note" :size="16" />
+                    </button>
+                  </div>
+                  <p v-if="openNotes.has(company.vat_number) && notes.get(company.vat_number)" class="companies__note">
+                    {{ notes.get(company.vat_number) }}
+                  </p>
                 </td>
                 <td class="mono">{{ company.vat_number }}</td>
                 <td>{{ location(company) }}</td>
@@ -161,9 +193,12 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { api, type CompanyListItem, type CompanySort, type Page } from '../api'
 import { divisionsFor } from '../ateco'
+import AppIcon from '../components/AppIcon.vue'
 import LoadState from '../components/LoadState.vue'
 import PageHeader from '../components/PageHeader.vue'
+import SaveButton from '../components/SaveButton.vue'
 import { formatCurrency, formatNumber } from '../format'
+import { useLibrary } from '../library'
 
 const PAGE_SIZES = [25, 50, 100]
 const INFO_KEYS = ['info1', 'info2', 'info3', 'info4', 'info5']
@@ -177,6 +212,23 @@ const FUNDING_STEPS = [10_000, 50_000, 100_000, 500_000, 1_000_000, 5_000_000]
 const FILTER_KEYS = ['search', 'province', 'section', 'division', 'theme', 'size', 'min_projects', 'min_funding'] as const
 
 const { t, locale } = useI18n()
+const library = useLibrary()
+const openNotes = ref(new Set<string>())
+
+const notes = computed(() => new Map(library.items.value.filter((item) => item.note).map((item) => [item.vat_number, item.note])))
+const pageNotes = computed(() => page.value?.items.filter((c) => notes.value.has(c.vat_number)).map((c) => c.vat_number) ?? [])
+const allNotesOpen = computed(() => pageNotes.value.length > 0 && pageNotes.value.every((vat) => openNotes.value.has(vat)))
+
+function toggleNote(vat: string) {
+  const next = new Set(openNotes.value)
+  if (next.has(vat)) next.delete(vat)
+  else next.add(vat)
+  openNotes.value = next
+}
+
+function toggleAllNotes() {
+  openNotes.value = allNotesOpen.value ? new Set() : new Set(pageNotes.value)
+}
 const route = useRoute()
 const router = useRouter()
 

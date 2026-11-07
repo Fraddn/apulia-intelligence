@@ -12,10 +12,13 @@
         <header class="card company__header">
           <div class="company__title-row">
             <h1 class="company__name">{{ company.name }}</h1>
-            <RouterLink :to="{ name: 'compare', query: { vats: company.vat_number } }" class="btn btn--small btn--round">
-              <AppIcon name="compare" :size="16" />
-              {{ t('company.compare') }}
-            </RouterLink>
+            <div class="company__actions">
+              <SaveButton :vat="company.vat_number" :name="company.name" />
+              <RouterLink :to="{ name: 'compare', query: { vats: company.vat_number } }" class="btn btn--small btn--round">
+                <AppIcon name="compare" :size="16" />
+                {{ t('company.compare') }}
+              </RouterLink>
+            </div>
           </div>
           <p class="meta-line company__meta">
             <span class="mono">{{ t('company.fields.vat_number') }} {{ company.vat_number }}</span>
@@ -133,6 +136,7 @@ import AssuranceBadge from '../components/AssuranceBadge.vue'
 import DiscoveryStatus from '../components/DiscoveryStatus.vue'
 import LoadState from '../components/LoadState.vue'
 import ProjectList from '../components/ProjectList.vue'
+import SaveButton from '../components/SaveButton.vue'
 import StatTile from '../components/StatTile.vue'
 import WebsiteStatus from '../components/WebsiteStatus.vue'
 import { formatCurrency, formatDate, formatNumber } from '../format'

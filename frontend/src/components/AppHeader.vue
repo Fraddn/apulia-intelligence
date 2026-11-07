@@ -23,6 +23,14 @@
           <AppIcon name="compare" />
           {{ t('nav.compare') }}
         </RouterLink>
+        <RouterLink to="/library" class="app-header__link" active-class="app-header__link--active">
+          <AppIcon name="bookmark" />
+          {{ t('nav.library') }}
+        </RouterLink>
+        <RouterLink to="/info" class="app-header__link" active-class="app-header__link--active">
+          <AppIcon name="info" />
+          {{ t('nav.glossary') }}
+        </RouterLink>
       </nav>
       <div class="app-header__controls">
         <UserMenu />

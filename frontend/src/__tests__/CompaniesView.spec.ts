@@ -3,9 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../locales/en'
+import { resetLibrary } from '../library'
 import CompaniesView from '../views/CompaniesView.vue'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  resetLibrary()
+})
 
 const page: { count: number; items: Record<string, unknown>[] } = {
   count: 1,
@@ -18,8 +22,12 @@ const page: { count: number; items: Record<string, unknown>[] } = {
   ],
 }
 
-async function render(url: string) {
-  const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => page })
+async function render(url: string, library: Record<string, unknown>[] = []) {
+  const fetchMock = vi.fn((path: string, init: RequestInit = {}) => {
+    const saved = { ...page.items[0], saved_at: '2026-11-07T10:00:00Z', note: '' }
+    const body = !path.startsWith('/api/library') ? page : init.method === 'POST' ? saved : library
+    return Promise.resolve({ ok: true, status: init.method === 'DELETE' ? 204 : 200, json: async () => body })
+  })
   vi.stubGlobal('fetch', fetchMock)
   const router = createRouter({
     history: createMemoryHistory(),
@@ -36,7 +44,8 @@ async function render(url: string) {
 }
 
 function lastRequest(fetchMock: ReturnType<typeof vi.fn>) {
-  return new URL(fetchMock.mock.calls.at(-1)?.[0], 'http://x').searchParams
+  const calls = fetchMock.mock.calls.filter(([url]) => String(url).startsWith('/api/companies'))
+  return new URL(calls.at(-1)?.[0], 'http://x').searchParams
 }
 
 describe('CompaniesView filters', () => {
@@ -132,5 +141,28 @@ describe('CompaniesView filters', () => {
     page.count = 1000
     const { wrapper } = await render('/companies?page=6')
     expect(wrapper.find('.companies__page-status').text()).toBe('6 / 40')
+  })
+
+  it('saves a company to the library from the list', async () => {
+    const { wrapper, fetchMock } = await render('/companies')
+    const button = wrapper.find('.companies__save')
+    expect(button.attributes('aria-pressed')).toBe('false')
+    await button.trigger('click')
+    await flushPromises()
+    expect(fetchMock.mock.calls.at(-1)).toEqual(['/api/library/03132170717', expect.objectContaining({ method: 'POST' })])
+    expect(wrapper.find('.companies__save').attributes('aria-pressed')).toBe('true')
+  })
+
+  it('shows the note saved on a company', async () => {
+    const saved = { ...page.items[0], saved_at: '2026-11-07T10:00:00Z', note: 'Met at the fair' }
+    const { wrapper } = await render('/companies', [saved])
+    expect(wrapper.find('.companies__save').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('.companies__note').exists()).toBe(false)
+    await wrapper.find('.companies__note-toggle').trigger('click')
+    expect(wrapper.find('.companies__note').text()).toBe('Met at the fair')
+    await wrapper.find('.companies__notes-all').trigger('click')
+    expect(wrapper.find('.companies__note').exists()).toBe(false)
+    await wrapper.find('.companies__notes-all').trigger('click')
+    expect(wrapper.find('.companies__note').exists()).toBe(true)
   })
 })

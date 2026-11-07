@@ -3,9 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../locales/en'
+import { resetLibrary } from '../library'
 import CompareView from '../views/CompareView.vue'
 
 afterEach(() => {
+  resetLibrary()
   vi.unstubAllGlobals()
   vi.useRealTimers()
 })
@@ -34,6 +36,7 @@ const GAMMA = { vat_number: '02462780731', name: 'GAMMA SRL', province: 'TA', ci
 
 function api(url: string) {
   const path = new URL(url, 'http://x').pathname
+  if (path === '/api/library') return Promise.resolve({ ok: true, status: 200, json: async () => [] })
   const details: Record<string, unknown> = { '03132170717': ALFA, '05866880726': BETA, '02462780731': detail('02462780731', 'GAMMA SRL') }
   const body = details[path.split('/').pop()!] ?? { count: 1, items: [GAMMA] }
   return Promise.resolve({ ok: true, status: 200, json: async () => body })
@@ -109,7 +112,7 @@ describe('CompareView', () => {
     await input.setValue('gamma')
     await vi.advanceTimersByTimeAsync(300)
     await flushPromises()
-    expect(new URL(fetchMock.mock.calls.at(-1)![0], 'http://x').searchParams.get('search')).toBe('gamma')
+    expect(new URL(fetchMock.mock.calls.filter(([u]) => String(u).includes('/companies?')).at(-1)![0], 'http://x').searchParams.get('search')).toBe('gamma')
     const option = wrapper.find('[role="option"]')
     expect(option.text()).toContain('GAMMA SRL')
     await option.trigger('mousedown')
