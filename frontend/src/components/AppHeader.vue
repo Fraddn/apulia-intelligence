@@ -19,6 +19,10 @@
           <AppIcon name="companies" />
           {{ t('nav.companies') }}
         </RouterLink>
+        <RouterLink to="/compare" class="app-header__link" active-class="app-header__link--active">
+          <AppIcon name="compare" />
+          {{ t('nav.compare') }}
+        </RouterLink>
       </nav>
       <div class="app-header__controls">
         <UserMenu />

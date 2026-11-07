@@ -10,7 +10,13 @@
     >
       <template v-if="company">
         <header class="card company__header">
-          <h1 class="company__name">{{ company.name }}</h1>
+          <div class="company__title-row">
+            <h1 class="company__name">{{ company.name }}</h1>
+            <RouterLink :to="{ name: 'compare', query: { vats: company.vat_number } }" class="btn btn--small btn--round">
+              <AppIcon name="compare" :size="16" />
+              {{ t('company.compare') }}
+            </RouterLink>
+          </div>
           <p class="meta-line company__meta">
             <span class="mono">{{ t('company.fields.vat_number') }} {{ company.vat_number }}</span>
             <span v-if="company.province">{{ company.city ? `${company.city} (${company.province})` : t(`provinces.${company.province}`) }}</span>
@@ -122,6 +128,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ApiError, api, type CompanyDetail, type Discovery, type Provenance, type Source } from '../api'
 import AidList from '../components/AidList.vue'
+import AppIcon from '../components/AppIcon.vue'
 import AssuranceBadge from '../components/AssuranceBadge.vue'
 import DiscoveryStatus from '../components/DiscoveryStatus.vue'
 import LoadState from '../components/LoadState.vue'

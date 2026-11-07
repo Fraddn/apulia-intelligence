@@ -80,7 +80,7 @@ Helpers:
 
 ## Frontend
 
-Pages: dashboard (`/`), company explorer (`/companies`, filters kept in the URL) and company profile (`/companies/:vat`, including a "Funded projects" section). Account pages: `/login`, `/signup` and `/account/verify-email/:token` (only used when email verification is switched on).
+Pages: dashboard (`/`), company explorer (`/companies`, filters kept in the URL), company profile (`/companies/:vat`, including a "Funded projects" section) and comparison (`/compare?vats=…`, up to 4 companies side by side, picked with a search box; missing values shown as "–", the highest number per row highlighted, plus a data-completeness row). Account pages: `/login`, `/signup` and `/account/verify-email/:token` (only used when email verification is switched on).
 
 - In development, Vite proxies `/api`, `/_allauth`, `/admin` and `/static` to Django (`API_PROXY_TARGET`, default `http://localhost:8000`), so no CORS setup is needed. Production needs the same paths routed to Django.
 - Auth (full details and a file-by-file guide in [authentication.md](authentication.md)): login is required for everything except the account pages, `/api/health` and `/api/summary` (three headline totals shown on the login page).

@@ -30,6 +30,9 @@ export type IconName =
   | 'mail'
   | 'check'
   | 'alert'
+  | 'compare'
+  | 'search'
+  | 'plus'
 </script>
 
 <script setup lang="ts">
@@ -48,6 +51,9 @@ const ICONS: Record<IconName, string[]> = {
   mail: ['M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z', 'M3 7l9 6 9-6'],
   check: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M8 12l3 3 5-6'],
   alert: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 8v5', 'M12 16h.01'],
+  compare: ['M4 4h6v16H4z', 'M14 4h6v16h-6z', 'M7 9h0', 'M17 9h0'],
+  search: ['M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z', 'M20 20l-4-4'],
+  plus: ['M12 5v14', 'M5 12h14'],
 }
 
 withDefaults(defineProps<{ name: IconName; size?: number }>(), { size: 18 })

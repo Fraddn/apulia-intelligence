@@ -9,6 +9,7 @@ const it: typeof en = {
   nav: {
     dashboard: 'Dashboard',
     companies: 'Aziende',
+    compare: 'Confronta',
   },
   settings: {
     language: 'Lingua',
@@ -126,6 +127,30 @@ const it: typeof en = {
     batNote:
       'La maggior parte delle aziende di Barletta-Andria-Trani ha una partita IVA rilasciata a Bari, quindi sono conteggiate sotto Bari finché l’indirizzo non viene verificato.',
   },
+  compare: {
+    title: 'Confronta aziende',
+    infoTitle: 'Come funziona il confronto',
+    info1: 'Cerca per ragione sociale o partita IVA e aggiungi fino a 4 aziende; la selezione resta nell’indirizzo, così puoi salvarla o condividerla.',
+    info2: 'I valori mancanti sono indicati con “–”, mai con zero.',
+    info3: 'Nelle righe numeriche il valore più alto è evidenziato quando almeno due aziende ne hanno uno.',
+    info4: 'Il finanziamento conta solo i progetti in cui l’azienda è l’unica beneficiaria; apri un’azienda per vedere tutte le fonti e le date.',
+    searchLabel: 'Cerca aziende da confrontare',
+    searchPlaceholder: 'Aggiungi un’azienda: ragione sociale o partita IVA',
+    full: 'Puoi confrontare fino a {max} aziende',
+    noResults: 'Nessuna azienda trovata.',
+    selected: '{count} di {max} selezionate',
+    empty: 'Cerca qui sopra e aggiungi da 2 a {max} aziende per confrontarle fianco a fianco.',
+    addCompany: 'Aggiungi azienda',
+    addAnother: 'Aggiungine almeno un’altra per confrontare',
+    onlyDifferences: 'Mostra solo le differenze',
+    hiddenRows: '{count} riga uguale nascosta | {count} righe uguali nascoste',
+    allSame: 'Queste aziende hanno gli stessi valori in ogni riga.',
+    highest: 'Valore più alto',
+    remove: 'Rimuovi {name}',
+    data: 'Dati',
+    completeness: 'Completezza',
+    fieldsFilled: '{filled} campi su {total}',
+  },
   companies: {
     title: 'Aziende',
     infoTitle: 'Informazioni sull’elenco',
@@ -175,6 +200,7 @@ const it: typeof en = {
   },
   company: {
     back: 'Torna alle aziende',
+    compare: 'Confronta',
     notFound: 'Azienda non trovata.',
     identity: 'Anagrafica',
     activity: 'Attività',

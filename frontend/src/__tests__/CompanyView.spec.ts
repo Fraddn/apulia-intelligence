@@ -31,6 +31,7 @@ async function render(overrides: Record<string, unknown> = {}) {
     history: createMemoryHistory(),
     routes: [
       { path: '/companies', name: 'companies', component: { template: '<div />' } },
+      { path: '/compare', name: 'compare', component: { template: '<div />' } },
       { path: '/companies/:vat', name: 'company', component: CompanyView, props: true },
     ],
   })

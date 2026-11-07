@@ -13,6 +13,7 @@ export const router = createRouter({
   routes: [
     { path: '/', name: 'dashboard', component: () => import('./views/DashboardView.vue') },
     { path: '/companies', name: 'companies', component: () => import('./views/CompaniesView.vue') },
+    { path: '/compare', name: 'compare', component: () => import('./views/CompareView.vue') },
     { path: '/companies/:vat', name: 'company', component: () => import('./views/CompanyView.vue'), props: true },
     { path: '/login', name: 'login', component: () => import('./views/LoginView.vue'), meta: { public: true, guestOnly: true } },
     { path: '/signup', name: 'signup', component: () => import('./views/SignupView.vue'), meta: { public: true, guestOnly: true } },
