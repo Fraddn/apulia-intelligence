@@ -16,7 +16,6 @@
           <button v-if="scopeLabel" type="button" class="btn btn--round" @click="setScope({ province: '', section: '' })">
             ✕ {{ t('dashboard.clearFilter') }}
           </button>
-          <span class="muted dashboard__scope-hint">{{ t('dashboard.clickHint') }}</span>
         </form>
 
         <div class="dashboard__body" :class="{ 'dashboard__body--busy': loading }">

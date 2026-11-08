@@ -25,7 +25,7 @@ The frontend copy is used only to show the username and decide which page to ren
 
 ### Passwords
 
-Passwords are stored hashed: scrambled one way, never readable, not even by an admin. Django's validators reject passwords that are too short (under 8 characters), too common, entirely numeric or too similar to the username or email. allauth rate-limits repeated failed logins.
+Passwords are stored hashed: scrambled one way, never readable, not even by an admin. Django's validators reject passwords that are too short (under 8 characters), too common, entirely numeric or too similar to the username or email. allauth rate-limits repeated failed logins: 5 per username every 5 minutes and 10 per minute per IP. The Django admin login has the same limits (`apps/core/admin.py`). In production `ALLAUTH_TRUSTED_PROXY_COUNT=1` makes the per-IP limit count each visitor, not Caddy.
 
 ### Usernames
 
@@ -97,7 +97,8 @@ Views call `api.ts`. The browser sends the cookies automatically, and `config/ap
 | `backend/apps/core/accounts.py` | `username_validators` (allowed characters) |
 | `backend/apps/core/api.py` | `/api/health`, public (`auth=None`) |
 | `backend/apps/companies/api.py` | `/api/summary`, public (`auth=None`); all other endpoints need a login |
-| `backend/apps/core/tests.py` | `LoginRequiredTests`, `NoEmailTests`, `SignupFlowTests`, `SessionTests` |
+| `backend/apps/core/admin.py` | Applies the failed-login limits to the Django admin login |
+| `backend/apps/core/tests.py` | `LoginRequiredTests`, `NoEmailTests`, `SignupFlowTests`, `SessionTests`, `LoginLimitTests` |
 
 allauth (the library) does the actual work: password checks, hashing, sessions and rate limits.
 

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { formatCurrency, formatDate, formatNumber, formatPercent } from '../format'
+import { formatCurrency, formatDate, formatNumber, formatPercent, isWebLink } from '../format'
 
 describe('format', () => {
+  it('accepts only http and https links', () => {
+    expect(isWebLink('https://opencoesione.gov.it/x')).toBe(true)
+    expect(isWebLink('HTTP://example.it')).toBe(true)
+    expect(isWebLink('javascript:alert(1)')).toBe(false)
+    expect(isWebLink('data:text/html,x')).toBe(false)
+    expect(isWebLink('')).toBe(false)
+  })
+
   it('formats numbers per locale', () => {
     expect(formatNumber(42485, 'it')).toBe('42.485')
     expect(formatNumber(42485, 'en')).toBe('42,485')

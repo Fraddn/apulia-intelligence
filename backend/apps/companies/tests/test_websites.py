@@ -1,7 +1,9 @@
 import io
 import shutil
 import tempfile
+import threading
 from datetime import timedelta
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from unittest import mock
 
@@ -293,3 +295,61 @@ class AdminTests(TestCase):
             response = self.client.post("/admin/companies/company/", {"action": "fetch_website_contacts", "_selected_action": [self.company.pk]})
         self.assertEqual(response.status_code, 302)
         self.assertEqual(WebsiteCheck.objects.get(company=self.company).status, WebsiteCheck.Status.VERIFIED)
+
+
+class PrivateAddressTests(SimpleTestCase):
+    def resolving_to(self, *ips):
+        return mock.patch.object(websites.socket, "getaddrinfo", return_value=[(2, 1, 6, "", (ip, 80)) for ip in ips])
+
+    def test_public_address_is_allowed(self):
+        with self.resolving_to("89.46.105.61"):
+            self.assertEqual(len(websites.public_addresses("vallefiorita.it", 80)), 1)
+
+    def test_private_and_local_addresses_are_refused(self):
+        for ips in (["127.0.0.1"], ["10.0.0.5"], ["169.254.169.254"], ["::1"], ["::ffff:192.168.1.1"], ["89.46.105.61", "172.18.0.2"]):
+            with self.subTest(ips=ips), self.resolving_to(*ips):
+                with self.assertRaises(websites.BlockedAddress):
+                    websites.public_addresses("evil.example", 80)
+
+    def test_only_web_addresses_are_fetched(self):
+        for url in ("file:///etc/passwd", "ftp://example.com/", "gopher://example.com/"):
+            with self.subTest(url=url), self.assertRaises(websites.BlockedAddress):
+                websites._get(url)
+
+    def test_local_server_is_never_contacted(self):
+        with self.assertRaises(websites.BlockedAddress):
+            websites._get("http://localhost:8000/admin/", timeout=2)
+
+
+class RedirectTests(SimpleTestCase):
+    def setUp(self):
+        self.requested = []
+        requested = self.requested
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                requested.append(self.path)
+                self.send_response(302)
+                self.send_header("Location", f"http://localhost:{self.server.server_port}/secret")
+                self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        self.server = HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.addCleanup(self.server.server_close)
+        self.addCleanup(self.server.shutdown)
+
+    def test_redirect_to_a_private_address_is_refused(self):
+        real = websites.public_addresses
+
+        def allow_test_host(host, port):
+            if host == "public.test":
+                return [(2, 1, 6, "", ("127.0.0.1", port))]
+            return real(host, port)
+
+        with mock.patch.object(websites, "public_addresses", side_effect=allow_test_host):
+            with self.assertRaises(websites.BlockedAddress):
+                websites._get(f"http://public.test:{self.server.server_port}/", timeout=2)
+        self.assertEqual(self.requested, ["/"])

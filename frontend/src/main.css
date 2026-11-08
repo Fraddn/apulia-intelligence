@@ -800,11 +800,6 @@ a.project-list__title:hover {
   font-weight: 600;
 }
 
-.dashboard__scope-hint {
-  margin-left: auto;
-  font-size: 14px;
-}
-
 .dashboard__body {
   display: flex;
   flex-direction: column;

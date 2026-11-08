@@ -44,7 +44,7 @@ class CandidateTests(SimpleTestCase):
 
 class ResolveTests(SimpleTestCase):
     def addresses(self, *ips):
-        return mock.patch.object(discovery.socket, "getaddrinfo", return_value=[(2, 1, 6, "", (ip, 443)) for ip in ips])
+        return mock.patch.object(websites.socket, "getaddrinfo", return_value=[(2, 1, 6, "", (ip, 443)) for ip in ips])
 
     def test_public_address_counts(self):
         with self.addresses("89.46.105.61"):

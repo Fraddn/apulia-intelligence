@@ -2,7 +2,7 @@
   <ul class="project-list">
     <li v-for="project in projects" :key="`${project.code}-${project.role}`" class="project-list__item">
       <div class="project-list__head">
-        <a v-if="project.url" :href="project.url" target="_blank" rel="noopener" class="project-list__title">{{ project.title }}</a>
+        <a v-if="isWebLink(project.url)" :href="project.url" target="_blank" rel="noopener" class="project-list__title">{{ project.title }}</a>
         <span v-else class="project-list__title">{{ project.title }}</span>
         <span class="project-list__amount">
           <span class="project-list__amount-label">
@@ -36,7 +36,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import type { FundedProject } from '../api'
-import { formatCurrency, formatDate, formatNumber } from '../format'
+import { formatCurrency, formatDate, formatNumber, isWebLink } from '../format'
 
 defineProps<{ projects: FundedProject[]; total: number }>()
 

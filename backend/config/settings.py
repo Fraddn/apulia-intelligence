@@ -131,6 +131,8 @@ ACCOUNT_EMAIL_VERIFICATION = env("ACCOUNT_EMAIL_VERIFICATION", default="none")
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_EMAIL_SUBJECT_PREFIX = "[Puglia Imprese] "
 HEADLESS_ONLY = True
+# Behind Caddy every request comes from the proxy; 1 makes allauth's per-IP limits use the visitor's IP.
+ALLAUTH_TRUSTED_PROXY_COUNT = env.int("ALLAUTH_TRUSTED_PROXY_COUNT", default=0)
 
 FRONTEND_URL = env("CORS_FRONTEND_URL")
 HEADLESS_FRONTEND_URLS = {

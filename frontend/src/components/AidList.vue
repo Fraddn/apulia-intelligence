@@ -24,13 +24,9 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import type { StateAidItem } from '../api'
-import { formatCurrency, formatDate, formatNumber } from '../format'
+import { formatCurrency, formatDate, formatNumber, isWebLink } from '../format'
 
 defineProps<{ items: StateAidItem[]; total: number }>()
 
 const { t, locale } = useI18n()
-
-function isWebLink(value: string) {
-  return /^https?:\/\//i.test(value)
-}
 </script>

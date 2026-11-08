@@ -160,7 +160,7 @@ import AppIcon from '../components/AppIcon.vue'
 import LoadState from '../components/LoadState.vue'
 import PageHeader from '../components/PageHeader.vue'
 import SaveButton from '../components/SaveButton.vue'
-import { formatCurrency, formatDate, formatNumber } from '../format'
+import { formatCurrency, formatDate, formatNumber, isWebLink } from '../format'
 
 interface Row {
   label: string
@@ -322,7 +322,7 @@ const groups = computed<{ title: string; rows: Row[] }[]>(() => [
     rows: [
       { label: t('company.fields.province'), value: (c: CompanyDetail) => (c.province ? t(`provinces.${c.province}`) : '') },
       { label: t('company.fields.city'), value: (c: CompanyDetail) => c.city },
-      { label: t('company.fields.website'), value: (c: CompanyDetail) => (c.website ? hostname(c.website) : ''), href: (c: CompanyDetail) => c.website },
+      { label: t('company.fields.website'), value: (c: CompanyDetail) => (c.website ? hostname(c.website) : ''), href: (c: CompanyDetail) => (isWebLink(c.website) ? c.website : '') },
     ],
   },
   {

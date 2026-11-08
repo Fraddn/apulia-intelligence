@@ -103,7 +103,6 @@ const it: typeof en = {
     bySizeHint: 'Dal Registro Nazionale degli Aiuti di Stato (RNA) e da OpenCoesione',
     smeUnspecified: 'PMI, classe non indicata',
     filterDashboard: 'Filtra la dashboard',
-    clickHint: 'I numeri in blu e ogni barra aprono le aziende corrispondenti.',
     viewCompanies: 'Vedi aziende',
     clearFilter: 'Rimuovi filtro',
     companiesInScope: 'Aziende',

@@ -1,6 +1,4 @@
-import ipaddress
 import re
-import socket
 import threading
 import time
 import unicodedata
@@ -70,15 +68,15 @@ def candidate_domains(name: str) -> list[str]:
 def _resolves(domain: str) -> bool:
     """True only for public addresses: some home routers answer every unknown name with 127.0.0.1."""
     try:
-        addresses = {info[4][0] for info in socket.getaddrinfo(domain, 443)}
-    except (OSError, UnicodeError):
+        websites.public_addresses(domain, 443)
+    except (OSError, UnicodeError, ValueError):
         return False
-    return any(ipaddress.ip_address(address.split("%")[0]).is_global for address in addresses)
+    return True
 
 
 def _listening(host: str, port: int) -> bool:
     try:
-        socket.create_connection((host, port), timeout=CONNECT_TIMEOUT).close()
+        websites._connect((host, port), timeout=CONNECT_TIMEOUT).close()
         return True
     except (OSError, UnicodeError):
         return False
@@ -168,21 +166,24 @@ def pending(force: bool = False):
 def discover_now(company: Company, deadline: float = ON_DEMAND_DEADLINE):
     """On-demand discovery for one company. Returns a WebsiteDiscovery, a transient status dict, or None."""
     if company.website:
-        if not WebsiteCheck.objects.filter(company=company).exists():
-            websites.fetch(company)
-        return None
-    record = WebsiteDiscovery.objects.filter(company=company).first()
-    if record and timezone.now() - record.attempted_at < timedelta(days=RETRY_DAYS):
-        return record
+        if WebsiteCheck.objects.filter(company=company).exists():
+            return None
+    else:
+        record = WebsiteDiscovery.objects.filter(company=company).first()
+        if record and timezone.now() - record.attempted_at < timedelta(days=RETRY_DAYS):
+            return record
     if not _slots.acquire(blocking=False):
         return {"status": BUSY}
     try:
+        if company.website:
+            websites.fetch(company, timeout=PAGE_TIMEOUT)
+            return None
         result = probe(company.name, company.vat_number, deadline=deadline)
+        if result.status == TIMEOUT:
+            return {"status": TIMEOUT}
+        record = save(company, result)
+        if result.status == WebsiteDiscovery.Status.FOUND:
+            websites.fetch(company, force=True, timeout=PAGE_TIMEOUT)
+        return record
     finally:
         _slots.release()
-    if result.status == TIMEOUT:
-        return {"status": TIMEOUT}
-    record = save(company, result)
-    if result.status == WebsiteDiscovery.Status.FOUND:
-        websites.fetch(company, force=True)
-    return record

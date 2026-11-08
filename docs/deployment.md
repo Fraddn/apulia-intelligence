@@ -122,6 +122,8 @@ ALLOWED_HOSTS=pugliaimprese.it
 CSRF_TRUSTED_ORIGINS=https://pugliaimprese.it
 CORS_FRONTEND_URL=https://pugliaimprese.it
 ACCOUNT_EMAIL_VERIFICATION=none
+# optional: only these IPs can open /admin (space-separated)
+# ADMIN_ALLOWED_IPS=93.40.1.2
 ```
 
 Then `chmod 600 .env` so only `apulia` can read it. Email (SMTP) settings are only needed before switching `ACCOUNT_EMAIL_VERIFICATION` to `mandatory`: `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` (see `.env.example`).
@@ -210,6 +212,23 @@ Containers restart by themselves after a crash or a server reboot (`restart: unl
 | `backend` | `backend` | Django + gunicorn on port 8000, reachable only from the server itself and from Caddy. |
 
 Unknown routes fall back to `index.html` so Vue router URLs like `/companies/123` work on reload. Without `SITE_ADDRESS` Caddy serves `https://localhost` with a self-signed certificate.
+
+## Security settings
+
+What protects the live site, and where it is set:
+
+| Protection | Where |
+|---|---|
+| HTTPS everywhere, browsers told to always use it (HSTS, 1 year, not sent for `localhost`) | `deploy/Caddyfile` |
+| Headers against clickjacking, content sniffing and referrer leaks; a basic Content-Security-Policy on the Vue pages | `deploy/Caddyfile` |
+| `/admin` limited to `ADMIN_ALLOWED_IPS` (optional, default everyone) | `.env` → `deploy/Caddyfile` |
+| Login limits per visitor (allauth) and on the admin login (5 failed tries per username every 5 minutes, 10 per minute per IP) | `ALLAUTH_TRUSTED_PROXY_COUNT=1` in `docker-compose.yml`, `apps/core/admin.py` |
+| The backend container runs as a normal user, not root. `deploy/vps.sh` builds it with the deploy user's id and gives it `data/` | `Dockerfile`, `deploy/vps.sh` |
+| Website fetching only reaches public internet addresses (never the server itself, Docker or a private network, redirects included) | `apps/companies/enrichment/websites.py` |
+
+Login limits and the admin allowlist rely on Caddy seeing the visitor's real IP. Docker keeps it for normal IPv4 traffic. If the server also has IPv6, check `docker compose logs web` after a visit: if every request shows a `172.x` address, Docker is hiding the real IP and the allowlist must include that address.
+
+If you run `sh deploy/vps.sh` as root, the container user gets id 1000.
 
 ## Backups
 

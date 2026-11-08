@@ -1,8 +1,22 @@
+import ipaddress
 import re
+import socket
+import time
 from datetime import date, timedelta
 from html.parser import HTMLParser
+from http.client import HTTPConnection, HTTPSConnection
+from urllib.error import URLError
 from urllib.parse import urljoin, urlparse
-from urllib.request import Request, urlopen
+from urllib.request import (
+    HTTPDefaultErrorHandler,
+    HTTPErrorProcessor,
+    HTTPHandler,
+    HTTPRedirectHandler,
+    HTTPSHandler,
+    OpenerDirector,
+    Request,
+    UnknownHandler,
+)
 from urllib.robotparser import RobotFileParser
 
 from django.db import transaction
@@ -15,6 +29,8 @@ ROBOTS_AGENT = "apulia-intelligence"
 MAX_PAGES = 5
 MAX_BYTES = 2_000_000
 REFRESH_DAYS = 90
+TIMEOUT = 15
+FETCH_BUDGET = 60
 
 SOURCE = {
     "code": "company_website",
@@ -194,17 +210,101 @@ def address(text: str) -> dict:
     }
 
 
-def _get(url: str, timeout: float = 15):
+class BlockedAddress(OSError):
+    """The host points to the server itself or a private network, which the fetcher must never reach."""
+
+
+def public_addresses(host: str, port: int) -> list:
+    """Resolve host, refusing it if any of its addresses is not on the public internet."""
+    infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0].split("%")[0])
+        if getattr(ip, "ipv4_mapped", None):
+            ip = ip.ipv4_mapped
+        if not ip.is_global:
+            raise BlockedAddress(f"{host} resolves to a non-public address ({ip})")
+    if not infos:
+        raise BlockedAddress(f"{host} has no address")
+    return infos
+
+
+def _connect(address, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, source_address=None, **kwargs):
+    host, port = address
+    error = None
+    for family, kind, proto, _, sockaddr in public_addresses(host, port):
+        sock = socket.socket(family, kind, proto)
+        try:
+            if timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+                sock.settimeout(timeout)
+            sock.connect(sockaddr)
+            return sock
+        except OSError as exc:
+            sock.close()
+            error = exc
+    raise error
+
+
+class _PublicHTTPConnection(HTTPConnection):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._create_connection = _connect
+
+
+class _PublicHTTPSConnection(HTTPSConnection):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._create_connection = _connect
+
+
+class _PublicHTTPHandler(HTTPHandler):
+    def http_open(self, req):
+        return self.do_open(_PublicHTTPConnection, req)
+
+
+class _PublicHTTPSHandler(HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_PublicHTTPSConnection, req, context=self._context)
+
+
+def _opener() -> OpenerDirector:
+    """Only http/https, no proxies, and every connection (redirects included) checked by public_addresses."""
+    opener = OpenerDirector()
+    for handler in (
+        _PublicHTTPHandler(), _PublicHTTPSHandler(), HTTPRedirectHandler(),
+        HTTPDefaultErrorHandler(), HTTPErrorProcessor(), UnknownHandler(),
+    ):
+        opener.add_handler(handler)
+    return opener
+
+
+def _get(url: str, timeout: float = TIMEOUT):
+    if urlparse(url).scheme not in ("http", "https"):
+        raise BlockedAddress(f"not a web address: {url}")
     request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/html,text/plain;q=0.9,*/*;q=0.5"})
-    with urlopen(request, timeout=timeout) as response:
+    started = time.monotonic()
+    try:
+        response = _opener().open(request, timeout=timeout)
+    except URLError as error:
+        if isinstance(error.reason, BlockedAddress):
+            raise error.reason from None
+        raise
+    with response:
         content_type = response.headers.get("Content-Type", "")
         if "html" not in content_type and "text" not in content_type:
             return response.status, ""
         charset = response.headers.get_content_charset() or "utf-8"
-        return response.status, response.read(MAX_BYTES).decode(charset, errors="replace")
+        body = bytearray()
+        while len(body) < MAX_BYTES:
+            chunk = response.read(min(65536, MAX_BYTES - len(body)))
+            if not chunk:
+                break
+            body += chunk
+            if time.monotonic() - started > timeout * 2:
+                raise TimeoutError(f"{url} took too long to load")
+        return response.status, bytes(body).decode(charset, errors="replace")
 
 
-def _robots(base: str, timeout: float = 15) -> RobotFileParser:
+def _robots(base: str, timeout: float = TIMEOUT) -> RobotFileParser:
     parser = RobotFileParser()
     try:
         status, body = _get(urljoin(base, "/robots.txt"), timeout=timeout)
@@ -274,7 +374,7 @@ def _save_check(company, url, status, pages=0, error=""):
     return check
 
 
-def fetch(company: Company, force: bool = False) -> WebsiteCheck:
+def fetch(company: Company, force: bool = False, timeout: float = TIMEOUT) -> WebsiteCheck:
     existing = WebsiteCheck.objects.filter(company=company).first()
     if existing and not force and timezone.now() - existing.checked_at < timedelta(days=REFRESH_DAYS):
         return existing
@@ -282,19 +382,22 @@ def fetch(company: Company, force: bool = False) -> WebsiteCheck:
     url = normalize_url(company.website)
     if not url:
         return _save_check(company, "", WebsiteCheck.Status.NO_WEBSITE)
+    started = time.monotonic()
     try:
-        robots = _robots(url)
+        robots = _robots(url, timeout=timeout)
         if not robots.can_fetch(ROBOTS_AGENT, url):
             return _save_check(company, url, WebsiteCheck.Status.BLOCKED)
-        status, home = _get(url)
+        status, home = _get(url, timeout=timeout)
         if status != 200 or not home:
             return _save_check(company, url, WebsiteCheck.Status.UNREACHABLE, error=f"HTTP {status}")
         pages = [(url, home)]
         for link in candidate_links(home, url)[: MAX_PAGES - 1]:
+            if time.monotonic() - started > FETCH_BUDGET:
+                break
             if not robots.can_fetch(ROBOTS_AGENT, link):
                 continue
             try:
-                link_status, html = _get(link)
+                link_status, html = _get(link, timeout=timeout)
             except Exception:
                 continue
             if link_status == 200 and html:

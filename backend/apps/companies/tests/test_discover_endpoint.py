@@ -16,7 +16,7 @@ def found(*args, **kwargs):
     return discovery.ProbeResult(WebsiteDiscovery.Status.FOUND, "https://www.vallefiorita.it/", ["vallefiorita.it"])
 
 
-def fake_fetch(company, force=False):
+def fake_fetch(company, force=False, timeout=None):
     company.city = "Brindisi"
     company.save()
     return WebsiteCheck.objects.create(company=company, url=company.website, status="verified", checked_at=timezone.now())

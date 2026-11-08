@@ -24,7 +24,7 @@
             <span class="mono">{{ t('company.fields.vat_number') }} {{ company.vat_number }}</span>
             <span v-if="company.province">{{ company.city ? `${company.city} (${company.province})` : t(`provinces.${company.province}`) }}</span>
             <span v-if="company.ateco_section">{{ t(`sections.${company.ateco_section}`) }}</span>
-            <a v-if="company.website" :href="company.website" target="_blank" rel="noopener">{{ hostname(company.website) }}</a>
+            <a v-if="isWebLink(company.website)" :href="company.website" target="_blank" rel="noopener">{{ hostname(company.website) }}</a>
           </p>
           <dl v-if="facts.length" class="company__facts">
             <div v-for="fact in facts" :key="fact.label" class="company__fact">
@@ -139,7 +139,7 @@ import ProjectList from '../components/ProjectList.vue'
 import SaveButton from '../components/SaveButton.vue'
 import StatTile from '../components/StatTile.vue'
 import WebsiteStatus from '../components/WebsiteStatus.vue'
-import { formatCurrency, formatDate, formatNumber } from '../format'
+import { formatCurrency, formatDate, formatNumber, isWebLink } from '../format'
 
 interface Row {
   field: string
@@ -280,7 +280,7 @@ const groups = computed(() => {
         }),
         makeRow('address', c.address),
         makeRow('postcode', c.postcode),
-        makeRow('website', c.website, { href: c.website || undefined }),
+        makeRow('website', c.website, { href: isWebLink(c.website) ? c.website : undefined }),
         makeRow('phone', c.phone, { href: c.phone ? `tel:${c.phone.replace(/\s+/g, '')}` : undefined }),
         makeRow('email', c.email, { href: c.email ? `mailto:${c.email}` : undefined }),
         makeRow('pec', c.pec, { href: c.pec ? `mailto:${c.pec}` : undefined }),

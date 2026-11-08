@@ -20,16 +20,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 ARG APP_VERSION=dev
 ENV APP_VERSION=${APP_VERSION}
+ARG APP_UID=1000
 
 WORKDIR /app
+RUN useradd --uid ${APP_UID} --user-group --no-create-home --home-dir /app --shell /usr/sbin/nologin app
 
 COPY backend/requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY backend/ .
-RUN mkdir -p /app/data/raw
-
 RUN SECRET_KEY=build-only python manage.py collectstatic --noinput
+RUN mkdir -p /app/data/raw && chown -R app:app /app/data
+
+USER app
 
 EXPOSE 8000
 

@@ -225,3 +225,33 @@ class SignupFlowTests(TestCase):
         self.assertEqual(response.status_code, 400)
         messages = " ".join(error["message"] for error in response.json()["errors"])
         self.assertIn("Questa password è interamente numerica", messages)
+
+
+class LoginLimitTests(TestCase):
+    login = "/_allauth/browser/v1/auth/login"
+
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+
+    def fail_login(self, ip, username):
+        return self.client.post(
+            self.login, {"username": username, "password": "wrong-password"},
+            content_type="application/json", HTTP_X_FORWARDED_FOR=ip,
+        )
+
+    @override_settings(ALLAUTH_TRUSTED_PROXY_COUNT=1)
+    def test_limits_count_each_visitor_behind_the_proxy(self):
+        for n in range(10):
+            self.fail_login("203.0.113.1", f"user{n}")
+        self.assertIn("too_many_login_attempts", self.fail_login("203.0.113.1", "other").content.decode())
+        self.assertNotIn("too_many_login_attempts", self.fail_login("203.0.113.2", "other").content.decode())
+
+    def test_admin_login_is_rate_limited(self):
+        get_user_model().objects.create_superuser("boss", "boss@example.com", "Puglia-2026-sicura")
+        for _ in range(5):
+            response = self.client.post("/admin/login/", {"username": "boss", "password": "wrong"})
+            self.assertEqual(response.status_code, 200)
+        response = self.client.post("/admin/login/", {"username": "boss", "password": "Puglia-2026-sicura"})
+        self.assertEqual(response.status_code, 429)

@@ -1,3 +1,7 @@
+export function isWebLink(value: string | null | undefined): value is string {
+  return !!value && /^https?:\/\//i.test(value)
+}
+
 const LOCALE_TAGS: Record<string, string> = { it: 'it-IT', en: 'en-GB' }
 
 export function formatNumber(value: number, locale: string): string {

@@ -101,7 +101,6 @@ export default {
     bySizeHint: 'From the national State aid register (RNA) and OpenCoesione',
     smeUnspecified: 'SME, class not stated',
     filterDashboard: 'Filter dashboard',
-    clickHint: 'Blue numbers and every bar open the matching companies.',
     viewCompanies: 'View companies',
     clearFilter: 'Clear filter',
     companiesInScope: 'Companies',
