@@ -11,7 +11,7 @@ FROM caddy:2-alpine AS web
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
 COPY --from=frontend /frontend/dist /srv
 
-FROM python:3.13-slim AS backend
+FROM python:3.15-slim AS backend
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
